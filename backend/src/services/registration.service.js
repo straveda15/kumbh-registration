@@ -1,0 +1,983 @@
+import mongoose from 'mongoose';
+import QRCodeLib from 'qrcode';
+import { Registration } from '../models/registration.model.js';
+import { User } from '../models/user.model.js';
+import { PersonalInformation } from '../models/personalInformation.model.js';
+import { EmergencyContact } from '../models/emergencyContact.model.js';
+import { MedicalProfile } from '../models/medicalProfile.model.js';
+import { TravelInformation } from '../models/travelInformation.model.js';
+import { Accommodation } from '../models/accommodation.model.js';
+import { FamilyMember } from '../models/familyMember.model.js';
+import { DigitalPass } from '../models/digitalPass.model.js';
+import { ScanLog } from '../models/scanLog.model.js';
+import { Event } from '../models/event.model.js';
+import { ActivityLog } from '../models/activityLog.model.js';
+import { ApiError } from '../utils/ApiError.js';
+import { getPagination, buildPaginationMeta } from '../helpers/pagination.helper.js';
+import { generateUniqueCode } from '../utils/generateCode.js';
+import { signDraftToken } from '../helpers/token.helper.js';
+import { REGISTRATION_STATUS } from '../constants/registrationStatus.js';
+import { STEP_STATUS } from '../constants/stepStatus.js';
+import { WIZARD_STEPS, WIZARD_STEP_VALUES } from '../constants/wizardSteps.js';
+import { EVENT_STATUS } from '../constants/eventStatus.js';
+import { DIGITAL_PASS_STATUS } from '../constants/digitalPassStatus.js';
+import config from '../config/env.js';
+import * as qrService from './qr.service.js';
+import * as dashboardService from './dashboard.service.js';
+import { logActivity } from './activityLog.service.js';
+import { logAudit, listAuditLogs } from './auditLog.service.js';
+import { createNotification } from './notification.service.js';
+import * as documentService from './document.service.js';
+
+const STEP_MODEL_MAP = {
+  [WIZARD_STEPS.PERSONAL_INFORMATION]: PersonalInformation,
+  [WIZARD_STEPS.EMERGENCY_CONTACT]: EmergencyContact,
+  [WIZARD_STEPS.MEDICAL_INFORMATION]: MedicalProfile,
+  [WIZARD_STEPS.TRAVEL_INFORMATION]: TravelInformation,
+  [WIZARD_STEPS.ACCOMMODATION]: Accommodation,
+};
+
+// familyMembers is intentionally excluded — not every citizen travels with
+// family, so it doesn't block final submit.
+const REQUIRED_STEPS = [
+  WIZARD_STEPS.PERSONAL_INFORMATION,
+  WIZARD_STEPS.EMERGENCY_CONTACT,
+  WIZARD_STEPS.MEDICAL_INFORMATION,
+  WIZARD_STEPS.TRAVEL_INFORMATION,
+  WIZARD_STEPS.ACCOMMODATION,
+];
+
+const MAX_SUBMIT_RETRIES = 5;
+
+// A registration stays editable while still draft, or after an admin has
+// explicitly asked for more information (see requestMoreInfo below) — the
+// request would otherwise be meaningless since the citizen could never act
+// on it.
+const EDITABLE_STATUSES = [REGISTRATION_STATUS.DRAFT, REGISTRATION_STATUS.INFO_REQUESTED];
+
+const assertDraftEditable = (registration) => {
+  if (!EDITABLE_STATUSES.includes(registration.registrationStatus)) {
+    throw ApiError.badRequest('This registration is no longer editable');
+  }
+};
+
+const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+const computeCompletionPercentage = (stepStatus) => {
+  const done = WIZARD_STEP_VALUES.filter(
+    (key) => stepStatus[key] === STEP_STATUS.COMPLETED || stepStatus[key] === STEP_STATUS.SKIPPED
+  ).length;
+  return Math.round((done / WIZARD_STEP_VALUES.length) * 100);
+};
+
+const getCurrentStep = (stepStatus) =>
+  WIZARD_STEP_VALUES.find((key) => stepStatus[key] === STEP_STATUS.PENDING) || null;
+
+const buildWizardProgress = (registration) => {
+  const stepStatus = registration.stepStatus.toObject
+    ? registration.stepStatus.toObject()
+    : registration.stepStatus;
+
+  return {
+    registrationId: registration._id,
+    registrationStatus: registration.registrationStatus,
+    stepStatus,
+    completionPercentage: registration.completionPercentage,
+    currentStep: getCurrentStep(stepStatus),
+    registrationNumber: registration.registrationNumber,
+    pilgrimId: registration.pilgrimId,
+  };
+};
+
+export const startRegistration = async ({ code }, meta = {}) => {
+  const qr = await qrService.validateQRForRegistration(code);
+  const event = qr.eventId;
+
+  if (event.status !== EVENT_STATUS.ACTIVE) {
+    throw ApiError.badRequest(`Event is ${event.status} and is not currently open for registration`);
+  }
+
+  const now = new Date();
+  if (event.registrationStartDate && now < event.registrationStartDate) {
+    throw ApiError.badRequest('Registration has not opened for this event yet');
+  }
+  if (event.registrationEndDate && now > event.registrationEndDate) {
+    throw ApiError.badRequest('Registration has closed for this event');
+  }
+  if (event.capacity) {
+    const count = await Registration.countDocuments({
+      eventId: event._id,
+      registrationStatus: { $ne: REGISTRATION_STATUS.DRAFT },
+    });
+    if (count >= event.capacity) throw ApiError.badRequest('This event has reached registration capacity');
+  }
+
+  const user = await User.create({});
+
+  const registration = await Registration.create({
+    eventId: event._id,
+    qrId: qr._id,
+    userId: user._id,
+  });
+
+  await Promise.all([
+    PersonalInformation.create({ userId: user._id, registrationId: registration._id }),
+    EmergencyContact.create({ userId: user._id, registrationId: registration._id }),
+    MedicalProfile.create({ userId: user._id, registrationId: registration._id }),
+    TravelInformation.create({ userId: user._id, registrationId: registration._id }),
+    Accommodation.create({ userId: user._id, registrationId: registration._id }),
+  ]);
+
+  await logActivity({
+    actorType: 'user',
+    actorId: user._id,
+    userId: user._id,
+    registrationId: registration._id,
+    action: 'registration.started',
+    metadata: { eventId: event._id },
+    ipAddress: meta.ipAddress,
+    userAgent: meta.userAgent,
+  });
+
+  const draftToken = signDraftToken({
+    registrationId: registration._id.toString(),
+    userId: user._id.toString(),
+    eventId: event._id.toString(),
+  });
+
+  return { draftToken, ...buildWizardProgress(registration) };
+};
+
+const saveStep = async (stepKey, registration, payload, meta = {}) => {
+  assertDraftEditable(registration);
+
+  const Model = STEP_MODEL_MAP[stepKey];
+  const doc = await Model.findOneAndUpdate(
+    { registrationId: registration._id },
+    { $set: { data: payload, status: STEP_STATUS.COMPLETED, completedAt: new Date() } },
+    { new: true, runValidators: true }
+  );
+
+  if (!doc) {
+    throw ApiError.notFound('Step record not found for this registration');
+  }
+
+  registration.stepStatus[stepKey] = STEP_STATUS.COMPLETED;
+  registration.completionPercentage = computeCompletionPercentage(registration.stepStatus);
+  await registration.save();
+
+  await logActivity({
+    actorType: 'user',
+    actorId: registration.userId,
+    userId: registration.userId,
+    registrationId: registration._id,
+    action: 'registration.step_saved',
+    metadata: { step: stepKey },
+    ipAddress: meta.ipAddress,
+    userAgent: meta.userAgent,
+  });
+
+  return {
+    step: { key: stepKey, status: doc.status, data: doc.data, completedAt: doc.completedAt },
+    ...buildWizardProgress(registration),
+  };
+};
+
+export const savePersonalInformation = (registration, payload, meta) =>
+  saveStep(WIZARD_STEPS.PERSONAL_INFORMATION, registration, payload, meta);
+
+export const saveEmergencyContact = (registration, payload, meta) =>
+  saveStep(WIZARD_STEPS.EMERGENCY_CONTACT, registration, payload, meta);
+
+export const saveMedicalInformation = (registration, payload, meta) =>
+  saveStep(WIZARD_STEPS.MEDICAL_INFORMATION, registration, payload, meta);
+
+export const saveTravelInformation = (registration, payload, meta) =>
+  saveStep(WIZARD_STEPS.TRAVEL_INFORMATION, registration, payload, meta);
+
+export const saveAccommodation = (registration, payload, meta) =>
+  saveStep(WIZARD_STEPS.ACCOMMODATION, registration, payload, meta);
+
+const syncFamilyStepStatus = async (registration) => {
+  const count = await FamilyMember.countDocuments({ registrationId: registration._id });
+  registration.stepStatus.familyMembers = count > 0 ? STEP_STATUS.COMPLETED : STEP_STATUS.PENDING;
+  registration.completionPercentage = computeCompletionPercentage(registration.stepStatus);
+  await registration.save();
+};
+
+export const listFamilyMembers = async (registration) =>
+  FamilyMember.find({ registrationId: registration._id }).sort({ createdAt: 1 });
+
+export const saveFamilyMembers = async (registration, members, meta = {}) => {
+  assertDraftEditable(registration);
+
+  await FamilyMember.deleteMany({ registrationId: registration._id });
+
+  const docs = members.length
+    ? await FamilyMember.insertMany(
+        members.map((data) => ({
+          userId: registration.userId,
+          registrationId: registration._id,
+          data,
+          status: STEP_STATUS.COMPLETED,
+          completedAt: new Date(),
+        }))
+      )
+    : [];
+
+  await syncFamilyStepStatus(registration);
+
+  await logActivity({
+    actorType: 'user',
+    actorId: registration.userId,
+    userId: registration.userId,
+    registrationId: registration._id,
+    action: 'registration.step_saved',
+    metadata: { step: WIZARD_STEPS.FAMILY_MEMBERS, count: docs.length },
+    ipAddress: meta.ipAddress,
+    userAgent: meta.userAgent,
+  });
+
+  return { members: docs, ...buildWizardProgress(registration) };
+};
+
+export const addFamilyMember = async (registration, payload, meta = {}) => {
+  assertDraftEditable(registration);
+
+  const member = await FamilyMember.create({
+    userId: registration.userId,
+    registrationId: registration._id,
+    data: payload,
+    status: STEP_STATUS.COMPLETED,
+    completedAt: new Date(),
+  });
+
+  await syncFamilyStepStatus(registration);
+
+  await logActivity({
+    actorType: 'user',
+    actorId: registration.userId,
+    userId: registration.userId,
+    registrationId: registration._id,
+    action: 'registration.family_member_added',
+    metadata: { familyMemberId: member._id },
+    ipAddress: meta.ipAddress,
+    userAgent: meta.userAgent,
+  });
+
+  return { member, ...buildWizardProgress(registration) };
+};
+
+export const updateFamilyMember = async (registration, memberId, payload, meta = {}) => {
+  assertDraftEditable(registration);
+
+  const member = await FamilyMember.findOneAndUpdate(
+    { _id: memberId, registrationId: registration._id },
+    { $set: { data: payload, completedAt: new Date() } },
+    { new: true, runValidators: true }
+  );
+
+  if (!member) {
+    throw ApiError.notFound('Family member not found for this registration');
+  }
+
+  await logActivity({
+    actorType: 'user',
+    actorId: registration.userId,
+    userId: registration.userId,
+    registrationId: registration._id,
+    action: 'registration.family_member_updated',
+    metadata: { familyMemberId: member._id },
+    ipAddress: meta.ipAddress,
+    userAgent: meta.userAgent,
+  });
+
+  return { member, ...buildWizardProgress(registration) };
+};
+
+export const deleteFamilyMember = async (registration, memberId, meta = {}) => {
+  assertDraftEditable(registration);
+
+  const member = await FamilyMember.findOneAndDelete({
+    _id: memberId,
+    registrationId: registration._id,
+  });
+
+  if (!member) {
+    throw ApiError.notFound('Family member not found for this registration');
+  }
+
+  await syncFamilyStepStatus(registration);
+
+  await logActivity({
+    actorType: 'user',
+    actorId: registration.userId,
+    userId: registration.userId,
+    registrationId: registration._id,
+    action: 'registration.family_member_removed',
+    metadata: { familyMemberId: memberId },
+    ipAddress: meta.ipAddress,
+    userAgent: meta.userAgent,
+  });
+
+  return buildWizardProgress(registration);
+};
+
+// Shared by getDraft (citizen wizard/dashboard), getRegistrationById
+// (admin detail view, which remaps these into its own response shape),
+// and operator.service.js's verifyPass (gate verification) — one place
+// for this Promise.all instead of three separate copies.
+export const assembleRegistrationDetail = async (registration) => {
+  const [
+    personalInformation,
+    emergencyContact,
+    medicalProfile,
+    travelInformation,
+    accommodation,
+    familyMembers,
+    digitalPass,
+    event,
+  ] = await Promise.all([
+    PersonalInformation.findOne({ registrationId: registration._id }),
+    EmergencyContact.findOne({ registrationId: registration._id }),
+    MedicalProfile.findOne({ registrationId: registration._id }),
+    TravelInformation.findOne({ registrationId: registration._id }),
+    Accommodation.findOne({ registrationId: registration._id }),
+    FamilyMember.find({ registrationId: registration._id }).sort({ createdAt: 1 }),
+    registration.digitalPassId ? DigitalPass.findById(registration.digitalPassId) : null,
+    // Read-only, public-safe event summary — the citizen's own dashboard
+    // has no other way to know which event they registered for.
+    Event.findById(registration.eventId).select('name startDate endDate venue status'),
+  ]);
+
+  return {
+    personalInformation,
+    emergencyContact,
+    medicalProfile,
+    travelInformation,
+    accommodation,
+    familyMembers,
+    digitalPass,
+    event,
+  };
+};
+
+// A pass is "activated" once an operator has actually verified this
+// pilgrim at the gate (an approved ScanLog entry ever exists for it) — not
+// merely once DigitalPass.status is 'active' (that's set at submit time,
+// unrelated to on-site verification; unchanged, see submitRegistration).
+// This is a read-only signal computed only for the citizen-facing draft
+// response below — QR generation/storage and the operator verification
+// flow are untouched.
+const isPassActivated = async (digitalPassId) =>
+  digitalPassId ? Boolean(await ScanLog.exists({ digitalPassId, result: 'approved' })) : false;
+
+// The citizen's own view of their registration. The QR code/image and
+// pilgrimId are confidential until the pilgrim is actually verified at the
+// gate — this is the ONLY place that redaction happens; admin
+// (getRegistrationById) and the operator (verifyPass) both call
+// assembleRegistrationDetail directly and keep seeing everything, since
+// neither goes through getDraft.
+export const getDraft = async (registration) => {
+  const { pilgrimId: _pilgrimId, ...progress } = buildWizardProgress(registration);
+  const detail = await assembleRegistrationDetail(registration);
+  const passActivated = await isPassActivated(detail.digitalPass?._id);
+
+  return {
+    ...progress,
+    ...detail,
+    digitalPass: detail.digitalPass && {
+      ...detail.digitalPass.toObject(),
+      qrCode: passActivated ? detail.digitalPass.qrCode : null,
+      qrImage: passActivated ? detail.digitalPass.qrImage : null,
+      passActivated,
+    },
+  };
+};
+
+export const listActivity = async (registration) =>
+  ActivityLog.find({ registrationId: registration._id }).sort({ createdAt: -1 });
+
+export const submitRegistration = async (registration, meta = {}) => {
+  assertDraftEditable(registration);
+
+  const incompleteSteps = REQUIRED_STEPS.filter(
+    (step) => registration.stepStatus[step] !== STEP_STATUS.COMPLETED
+  );
+  if (incompleteSteps.length > 0) {
+    throw ApiError.badRequest(
+      'Complete all required steps before submitting',
+      incompleteSteps.map((step) => ({ field: step, message: 'Step is not completed' }))
+    );
+  }
+
+  // Every pilgrim gets their own account (email+password, set via the
+  // Personal Information step — see pilgrimAuth.service.js's
+  // setCredentials) so they can log back in later without their draft
+  // token. Submit is the natural, final gate for that requirement, same
+  // as the required-steps check above.
+  const accountUser = await User.findById(registration.userId).select('+password');
+  if (!accountUser?.password) {
+    throw ApiError.badRequest('Set your account password in Personal Information before submitting', [
+      { field: 'password', message: 'Account password is required' },
+    ]);
+  }
+
+  await qrService.validateQRById(registration.qrId);
+
+  const event = await Event.findById(registration.eventId);
+  if (!event) {
+    throw ApiError.notFound('Event not found');
+  }
+  if (event.status === EVENT_STATUS.CANCELLED || event.status === EVENT_STATUS.COMPLETED) {
+    throw ApiError.badRequest(`Event is ${event.status} and no longer accepting submissions`);
+  }
+
+  const year = new Date().getFullYear();
+  const yearStart = new Date(`${year}-01-01T00:00:00.000Z`);
+  const yearEnd = new Date(`${year + 1}-01-01T00:00:00.000Z`);
+
+  let registrationNumber;
+  let pilgrimId;
+  let attempt = 0;
+  let succeeded = false;
+
+  while (attempt < MAX_SUBMIT_RETRIES && !succeeded) {
+    const count = await Registration.countDocuments({
+      registrationStatus: { $ne: REGISTRATION_STATUS.DRAFT },
+      submittedAt: { $gte: yearStart, $lt: yearEnd },
+    });
+    const sequence = String(count + 1 + attempt).padStart(6, '0');
+    registrationNumber = `REG-${year}-${sequence}`;
+    pilgrimId = `KP${year}${config.pilgrimIdRegionCode}${sequence}`;
+
+    try {
+      registration.registrationStatus = REGISTRATION_STATUS.SUBMITTED;
+      registration.submittedAt = new Date();
+      registration.registrationNumber = registrationNumber;
+      registration.pilgrimId = pilgrimId;
+      registration.dashboardCreated = true;
+      await registration.save();
+      succeeded = true;
+    } catch (err) {
+      if (err.code !== 11000) {
+        throw err;
+      }
+      attempt += 1;
+    }
+  }
+
+  if (!succeeded) {
+    throw ApiError.conflict('Could not allocate a unique registration number, please retry submission');
+  }
+
+  const passUniqueCode = generateUniqueCode();
+  const passUrl = `${config.frontendUrl}/pass/${passUniqueCode}`;
+  const qrImage = await QRCodeLib.toDataURL(passUrl);
+
+  const digitalPass = await DigitalPass.create({
+    registrationId: registration._id,
+    userId: registration.userId,
+    eventId: registration.eventId,
+    passNumber: registrationNumber,
+    qrCode: passUniqueCode,
+    qrImage,
+    status: DIGITAL_PASS_STATUS.ACTIVE,
+    issuedAt: new Date(),
+  });
+
+  registration.digitalPassId = digitalPass._id;
+  await registration.save();
+
+  await dashboardService.getOrCreateDashboard(registration.userId);
+
+  await logActivity({
+    actorType: 'user',
+    actorId: registration.userId,
+    userId: registration.userId,
+    registrationId: registration._id,
+    action: 'registration.submitted',
+    metadata: { registrationNumber, pilgrimId },
+    ipAddress: meta.ipAddress,
+    userAgent: meta.userAgent,
+  });
+
+  await logActivity({
+    actorType: 'system',
+    actorId: digitalPass._id,
+    userId: registration.userId,
+    registrationId: registration._id,
+    action: 'registration.pass_generated',
+    metadata: { passNumber: registrationNumber },
+  });
+
+  await logAudit({
+    entityType: 'Registration',
+    entityId: registration._id,
+    action: 'status_changed',
+    performedBy: null,
+    beforeState: { registrationStatus: REGISTRATION_STATUS.DRAFT },
+    afterState: { registrationStatus: REGISTRATION_STATUS.SUBMITTED, registrationNumber, pilgrimId },
+  });
+
+  await createNotification({
+    userId: registration.userId,
+    registrationId: registration._id,
+    type: 'registration_submitted',
+    title: 'Registration submitted',
+    message: `Your registration was submitted successfully. Registration Number: ${registrationNumber}, Pilgrim ID: ${pilgrimId}.`,
+  });
+
+  return {
+    registrationNumber,
+    pilgrimId,
+    // Frontend origin, not the API's — this is a page route (React Router's
+    // /dashboard), not an endpoint. No userId param: the dashboard reads the
+    // citizen's session from their persisted draft token, not a URL segment.
+    dashboardUrl: `${config.frontendUrl}/dashboard`,
+  };
+};
+
+export const approveRegistration = async (id, adminId) => {
+  const registration = await Registration.findById(id);
+  if (!registration) {
+    throw ApiError.notFound('Registration not found');
+  }
+  if (registration.registrationStatus !== REGISTRATION_STATUS.SUBMITTED) {
+    throw ApiError.badRequest(
+      `Registration must be submitted before it can be approved (current status: ${registration.registrationStatus})`
+    );
+  }
+
+  const beforeState = { registrationStatus: registration.registrationStatus };
+
+  registration.registrationStatus = REGISTRATION_STATUS.APPROVED;
+  registration.approvedAt = new Date();
+  registration.reviewedBy = adminId;
+  await registration.save();
+
+  await logActivity({
+    actorType: 'admin',
+    actorId: adminId,
+    userId: registration.userId,
+    registrationId: registration._id,
+    action: 'registration.approved',
+  });
+
+  await logAudit({
+    entityType: 'Registration',
+    entityId: registration._id,
+    action: 'status_changed',
+    performedBy: adminId,
+    beforeState,
+    afterState: { registrationStatus: REGISTRATION_STATUS.APPROVED },
+  });
+
+  await createNotification({
+    userId: registration.userId,
+    registrationId: registration._id,
+    type: 'registration_approved',
+    title: 'Registration approved',
+    message: 'Your registration has been approved.',
+  });
+
+  return registration;
+};
+
+export const rejectRegistration = async (id, adminId, reason) => {
+  const registration = await Registration.findById(id);
+  if (!registration) {
+    throw ApiError.notFound('Registration not found');
+  }
+  if (registration.registrationStatus !== REGISTRATION_STATUS.SUBMITTED) {
+    throw ApiError.badRequest(
+      `Registration must be submitted before it can be rejected (current status: ${registration.registrationStatus})`
+    );
+  }
+
+  const beforeState = { registrationStatus: registration.registrationStatus };
+
+  registration.registrationStatus = REGISTRATION_STATUS.REJECTED;
+  registration.rejectedAt = new Date();
+  registration.reviewedBy = adminId;
+  registration.rejectionReason = reason;
+  await registration.save();
+
+  await logActivity({
+    actorType: 'admin',
+    actorId: adminId,
+    userId: registration.userId,
+    registrationId: registration._id,
+    action: 'registration.rejected',
+    metadata: { reason },
+  });
+
+  await logAudit({
+    entityType: 'Registration',
+    entityId: registration._id,
+    action: 'status_changed',
+    performedBy: adminId,
+    beforeState,
+    afterState: { registrationStatus: REGISTRATION_STATUS.REJECTED },
+    reason,
+  });
+
+  await createNotification({
+    userId: registration.userId,
+    registrationId: registration._id,
+    type: 'registration_rejected',
+    title: 'Registration rejected',
+    message: `Your registration was rejected. Reason: ${reason}`,
+  });
+
+  return registration;
+};
+
+export const requestMoreInfo = async (id, adminId, reason) => {
+  const registration = await Registration.findById(id);
+  if (!registration) {
+    throw ApiError.notFound('Registration not found');
+  }
+  if (registration.registrationStatus !== REGISTRATION_STATUS.SUBMITTED) {
+    throw ApiError.badRequest(
+      `Registration must be submitted before requesting more information (current status: ${registration.registrationStatus})`
+    );
+  }
+
+  const beforeState = { registrationStatus: registration.registrationStatus };
+
+  registration.registrationStatus = REGISTRATION_STATUS.INFO_REQUESTED;
+  registration.infoRequestedAt = new Date();
+  registration.reviewedBy = adminId;
+  registration.statusNote = reason;
+  await registration.save();
+
+  await logActivity({
+    actorType: 'admin',
+    actorId: adminId,
+    userId: registration.userId,
+    registrationId: registration._id,
+    action: 'registration.info_requested',
+    metadata: { reason },
+  });
+
+  await logAudit({
+    entityType: 'Registration',
+    entityId: registration._id,
+    action: 'status_changed',
+    performedBy: adminId,
+    beforeState,
+    afterState: { registrationStatus: REGISTRATION_STATUS.INFO_REQUESTED },
+    reason,
+  });
+
+  await createNotification({
+    userId: registration.userId,
+    registrationId: registration._id,
+    type: 'registration_info_requested',
+    title: 'More information requested',
+    message: `Please provide more information: ${reason}`,
+  });
+
+  return registration;
+};
+
+export const suspendRegistration = async (id, adminId, reason) => {
+  const registration = await Registration.findById(id);
+  if (!registration) {
+    throw ApiError.notFound('Registration not found');
+  }
+  if (
+    ![REGISTRATION_STATUS.SUBMITTED, REGISTRATION_STATUS.APPROVED].includes(
+      registration.registrationStatus
+    )
+  ) {
+    throw ApiError.badRequest(
+      `Only submitted or approved registrations can be suspended (current status: ${registration.registrationStatus})`
+    );
+  }
+
+  const beforeState = { registrationStatus: registration.registrationStatus };
+
+  registration.registrationStatus = REGISTRATION_STATUS.SUSPENDED;
+  registration.suspendedAt = new Date();
+  registration.reviewedBy = adminId;
+  registration.statusNote = reason;
+  await registration.save();
+
+  await logActivity({
+    actorType: 'admin',
+    actorId: adminId,
+    userId: registration.userId,
+    registrationId: registration._id,
+    action: 'registration.suspended',
+    metadata: { reason },
+  });
+
+  await logAudit({
+    entityType: 'Registration',
+    entityId: registration._id,
+    action: 'status_changed',
+    performedBy: adminId,
+    beforeState,
+    afterState: { registrationStatus: REGISTRATION_STATUS.SUSPENDED },
+    reason,
+  });
+
+  await createNotification({
+    userId: registration.userId,
+    registrationId: registration._id,
+    type: 'registration_suspended',
+    title: 'Registration suspended',
+    message: `Your registration has been suspended. Reason: ${reason}`,
+  });
+
+  return registration;
+};
+
+export const restoreRegistration = async (id, adminId) => {
+  const registration = await Registration.findById(id);
+  if (!registration) {
+    throw ApiError.notFound('Registration not found');
+  }
+  if (registration.registrationStatus !== REGISTRATION_STATUS.SUSPENDED) {
+    throw ApiError.badRequest(
+      `Only suspended registrations can be restored (current status: ${registration.registrationStatus})`
+    );
+  }
+
+  const beforeState = { registrationStatus: registration.registrationStatus };
+  const restoredStatus = registration.approvedAt
+    ? REGISTRATION_STATUS.APPROVED
+    : REGISTRATION_STATUS.SUBMITTED;
+
+  registration.registrationStatus = restoredStatus;
+  registration.restoredAt = new Date();
+  registration.reviewedBy = adminId;
+  await registration.save();
+
+  await logActivity({
+    actorType: 'admin',
+    actorId: adminId,
+    userId: registration.userId,
+    registrationId: registration._id,
+    action: 'registration.restored',
+  });
+
+  await logAudit({
+    entityType: 'Registration',
+    entityId: registration._id,
+    action: 'status_changed',
+    performedBy: adminId,
+    beforeState,
+    afterState: { registrationStatus: restoredStatus },
+  });
+
+  await createNotification({
+    userId: registration.userId,
+    registrationId: registration._id,
+    type: 'registration_restored',
+    title: 'Registration restored',
+    message: 'Your registration has been restored.',
+  });
+
+  return registration;
+};
+
+export const deleteRegistrationCascade = async (id, adminId) => {
+  const registration = await Registration.findById(id);
+  if (!registration) {
+    throw ApiError.notFound('Registration not found');
+  }
+
+  const detail = await assembleRegistrationDetail(registration);
+  const snapshot = { registration: registration.toObject(), ...detail };
+
+  await documentService.deleteAllDocuments(registration);
+
+  await Promise.all([
+    PersonalInformation.deleteOne({ registrationId: registration._id }),
+    EmergencyContact.deleteOne({ registrationId: registration._id }),
+    MedicalProfile.deleteOne({ registrationId: registration._id }),
+    TravelInformation.deleteOne({ registrationId: registration._id }),
+    Accommodation.deleteOne({ registrationId: registration._id }),
+    FamilyMember.deleteMany({ registrationId: registration._id }),
+    registration.digitalPassId
+      ? DigitalPass.deleteOne({ _id: registration.digitalPassId })
+      : Promise.resolve(),
+  ]);
+
+  await registration.deleteOne();
+
+  await logAudit({
+    entityType: 'Registration',
+    entityId: id,
+    action: 'deleted',
+    performedBy: adminId,
+    beforeState: snapshot,
+    afterState: null,
+  });
+
+  await logActivity({
+    actorType: 'admin',
+    actorId: adminId,
+    userId: registration.userId,
+    registrationId: registration._id,
+    action: 'registration.deleted',
+  });
+
+  return { deleted: true };
+};
+
+export const listRegistrations = async (query) => {
+  const { page, limit, skip } = getPagination(query);
+  const sortableFields = ['createdAt', 'submittedAt', 'registrationNumber', 'completionPercentage'];
+  const sortField = sortableFields.includes(query.sortBy) ? query.sortBy : 'createdAt';
+  const sortOrder = query.sortOrder === 'asc' ? 1 : -1;
+
+  const match = {};
+  if (query.eventId) match.eventId = new mongoose.Types.ObjectId(query.eventId);
+  if (query.status) match.registrationStatus = query.status;
+  if (query.dateFrom || query.dateTo) {
+    match.submittedAt = {};
+    if (query.dateFrom) match.submittedAt.$gte = new Date(query.dateFrom);
+    if (query.dateTo) match.submittedAt.$lte = new Date(query.dateTo);
+  }
+  // Search (registrationNumber/pilgrimId/name/mobile) is applied in one
+  // place only — the personalFilters $match below, after the
+  // PersonalInformation lookup — since it needs name/mobile alongside the
+  // root fields. Splitting it across two AND'd $match stages would require
+  // both to match simultaneously, breaking name-only searches.
+
+  const pipeline = [
+    { $match: match },
+    {
+      $lookup: {
+        from: PersonalInformation.collection.name,
+        localField: '_id',
+        foreignField: 'registrationId',
+        as: 'personal',
+      },
+    },
+    { $unwind: { path: '$personal', preserveNullAndEmptyArrays: true } },
+  ];
+
+  // Fields that live inside PersonalInformation.data need their own $match
+  // stage after the $lookup/$unwind above — they can't be part of the
+  // initial $match since that runs before the join.
+  const personalFilters = {};
+  if (query.gender) personalFilters['personal.data.gender'] = query.gender;
+  if (query.state) personalFilters['personal.data.state'] = query.state;
+  if (query.district) personalFilters['personal.data.district'] = query.district;
+  if (query.search) {
+    const regex = new RegExp(escapeRegExp(query.search), 'i');
+    personalFilters.$or = [
+      { registrationNumber: regex },
+      { pilgrimId: regex },
+      { 'personal.data.fullName': regex },
+      { 'personal.data.mobile': regex },
+    ];
+  }
+  if (Object.keys(personalFilters).length > 0) {
+    pipeline.push({ $match: personalFilters });
+  }
+
+  pipeline.push(
+    { $sort: { [sortField]: sortOrder } },
+    {
+      $facet: {
+        data: [{ $skip: skip }, { $limit: limit }],
+        totalCount: [{ $count: 'count' }],
+      },
+    }
+  );
+
+  const [result] = await Registration.aggregate(pipeline);
+  const total = result.totalCount[0]?.count ?? 0;
+
+  const registrations = await Registration.populate(result.data, {
+    path: 'eventId',
+    select: 'name status startDate endDate',
+  });
+
+  return { registrations, meta: buildPaginationMeta({ page, limit, total }) };
+};
+
+// Admin detail view (Registration Details page). Reuses the same
+// collections as the citizen wizard (assembleRegistrationDetail,
+// documentService, auditLog.service) — nothing here is a new model, just a
+// single assembled response so the page doesn't need four separate round
+// trips for data that's already sitting in existing collections.
+export const getRegistrationById = async (id) => {
+  const registration = await Registration.findById(id)
+    .populate('eventId')
+    .populate('qrId')
+    .populate('reviewedBy', 'name email');
+
+  if (!registration) {
+    throw ApiError.notFound('Registration not found');
+  }
+
+  const [
+    { personalInformation, emergencyContact, medicalProfile, travelInformation, accommodation, familyMembers, digitalPass },
+    documents,
+    auditLogs,
+  ] = await Promise.all([
+    assembleRegistrationDetail(registration),
+    documentService.listDocuments(registration),
+    listAuditLogs('Registration', registration._id),
+  ]);
+
+  // Admin sees the real QR unconditionally (assembleRegistrationDetail
+  // never redacts it — only getDraft does, for the citizen). passActivated
+  // is still computed here so the admin's Verification badge reflects the
+  // true on-site-verification state rather than always reading "Verified"
+  // (which is all DigitalPass.status alone could ever say, since that
+  // field is set to 'active' at submit and never changes after).
+  const passActivated = await isPassActivated(digitalPass?._id);
+
+  return {
+    registration,
+    event: registration.eventId,
+    qr: registration.qrId,
+    personal: personalInformation,
+    // Address fields live inside the personal-information step's own
+    // `data` blob — there is no separate Address collection, so this is
+    // the same document exposed under the name the Address tab binds to.
+    address: personalInformation,
+    emergencyContact,
+    medicalInformation: medicalProfile,
+    travelInformation,
+    accommodation,
+    familyMembers,
+    documents,
+    auditLogs,
+    digitalPass: digitalPass && { ...digitalPass.toObject(), passActivated },
+  };
+};
+
+export default {
+  startRegistration,
+  assembleRegistrationDetail,
+  savePersonalInformation,
+  saveEmergencyContact,
+  saveMedicalInformation,
+  saveTravelInformation,
+  saveAccommodation,
+  saveFamilyMembers,
+  addFamilyMember,
+  updateFamilyMember,
+  deleteFamilyMember,
+  listFamilyMembers,
+  getDraft,
+  submitRegistration,
+  approveRegistration,
+  rejectRegistration,
+  requestMoreInfo,
+  suspendRegistration,
+  restoreRegistration,
+  deleteRegistrationCascade,
+  listRegistrations,
+  getRegistrationById,
+  listActivity,
+};
