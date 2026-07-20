@@ -104,7 +104,7 @@ export const DigitalPassPage = () => {
             profilePhotoUrl={profilePhoto?.url}
           />
 
-          <div className="flex items-center gap-2 print:hidden">
+          <div className="flex flex-wrap items-center gap-2 print:hidden">
             <Button variant="outline" className="flex-1 gap-1.5" onClick={() => window.print()}>
               <Printer className="size-4" /> Print
             </Button>

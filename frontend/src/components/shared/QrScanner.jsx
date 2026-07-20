@@ -54,7 +54,16 @@ export const QrScanner = ({
     scanner
       .start(
         { facingMode: 'environment' },
-        { fps: 10, qrbox: { width: 240, height: 240 } },
+        {
+          fps: 10,
+          // A callback (rather than a fixed px size) so the scan target
+          // stays proportional to the actual camera viewfinder — a fixed
+          // 240px box left little margin around it on narrow phones.
+          qrbox: (viewfinderWidth, viewfinderHeight) => {
+            const edge = Math.floor(Math.min(viewfinderWidth, viewfinderHeight) * 0.7);
+            return { width: edge, height: edge };
+          },
+        },
         (decodedText) => {
           if (!cancelled) onDetected(decodedText);
         },
@@ -127,7 +136,7 @@ export const QrScanner = ({
         </div>
         <div
           id={SCANNER_ELEMENT_ID}
-          className="mx-auto aspect-square w-full max-w-sm overflow-hidden rounded-xl bg-black/40"
+          className="mx-auto aspect-[3/4] w-full max-w-sm overflow-hidden rounded-xl bg-black/40"
         />
         {cameraError && (
           <div className="mt-2 flex items-center justify-between gap-2">

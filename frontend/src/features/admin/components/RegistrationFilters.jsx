@@ -12,7 +12,7 @@ export const RegistrationFilters = ({ filters, onChange }) => {
 
   return (
     <div className="glass-card flex flex-wrap items-end gap-3 rounded-2xl border-none p-4">
-      <div className="flex min-w-48 flex-1 flex-col gap-1.5">
+      <div className="flex w-full flex-1 flex-col gap-1.5 sm:min-w-48 sm:w-auto">
         <Label className="text-xs">Search</Label>
         <Input
           value={filters.search || ''}
@@ -27,7 +27,7 @@ export const RegistrationFilters = ({ filters, onChange }) => {
           value={filters.status || 'all'}
           onValueChange={(value) => update({ status: value === 'all' ? '' : value })}
         >
-          <SelectTrigger className="w-40">
+          <SelectTrigger className="w-full sm:w-40">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -47,7 +47,7 @@ export const RegistrationFilters = ({ filters, onChange }) => {
           value={filters.gender || 'all'}
           onValueChange={(value) => update({ gender: value === 'all' ? '' : value })}
         >
-          <SelectTrigger className="w-32">
+          <SelectTrigger className="w-full sm:w-32">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -62,7 +62,7 @@ export const RegistrationFilters = ({ filters, onChange }) => {
       <div className="flex flex-col gap-1.5">
         <Label className="text-xs">State</Label>
         <Input
-          className="w-32"
+          className="w-full sm:w-32"
           value={filters.state || ''}
           onChange={(event) => update({ state: event.target.value })}
         />
@@ -71,7 +71,7 @@ export const RegistrationFilters = ({ filters, onChange }) => {
       <div className="flex flex-col gap-1.5">
         <Label className="text-xs">District</Label>
         <Input
-          className="w-32"
+          className="w-full sm:w-32"
           value={filters.district || ''}
           onChange={(event) => update({ district: event.target.value })}
         />
@@ -81,7 +81,7 @@ export const RegistrationFilters = ({ filters, onChange }) => {
         <Label className="text-xs">From</Label>
         <Input
           type="date"
-          className="w-40"
+          className="w-full sm:w-40"
           value={filters.dateFrom || ''}
           onChange={(event) => update({ dateFrom: event.target.value })}
         />
@@ -90,7 +90,7 @@ export const RegistrationFilters = ({ filters, onChange }) => {
         <Label className="text-xs">To</Label>
         <Input
           type="date"
-          className="w-40"
+          className="w-full sm:w-40"
           value={filters.dateTo || ''}
           onChange={(event) => update({ dateTo: event.target.value })}
         />

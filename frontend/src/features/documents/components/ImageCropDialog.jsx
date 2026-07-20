@@ -28,7 +28,7 @@ export const ImageCropDialog = ({ open, onOpenChange, imageSrc, onCropped }) => 
         <DialogHeader>
           <DialogTitle>Crop Profile Photo</DialogTitle>
         </DialogHeader>
-        <div className="relative h-72 w-full overflow-hidden rounded-xl bg-black/40">
+        <div className="relative h-56 w-full overflow-hidden rounded-xl bg-black/40 sm:h-72">
           {imageSrc && (
             <Cropper
               image={imageSrc}

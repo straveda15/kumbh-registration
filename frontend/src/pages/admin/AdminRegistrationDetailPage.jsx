@@ -151,9 +151,9 @@ export const AdminRegistrationDetailPage = () => {
       </Button>
 
       <div className="glass-card flex flex-wrap items-center justify-between gap-3 rounded-2xl border-none p-5 print:hidden">
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-xl font-semibold text-foreground">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <h1 className="break-words text-xl font-semibold text-foreground">
               {personal?.data?.fullName || 'Registration Detail'}
             </h1>
             <RegistrationStatusBadge status={status} />
@@ -260,11 +260,11 @@ export const AdminRegistrationDetailPage = () => {
               <ul className="flex flex-col gap-2">
                 {documents.map((doc) => (
                   <li key={doc._id} className="flex items-center justify-between gap-3 rounded-xl bg-white/5 p-3 text-xs">
-                    <div>
+                    <div className="min-w-0 flex-1">
                       <p className="font-medium text-foreground capitalize">{doc.type.replace(/([A-Z])/g, ' $1')}</p>
-                      <p className="text-muted-foreground">{doc.originalName}</p>
+                      <p className="truncate text-muted-foreground">{doc.originalName}</p>
                     </div>
-                    <Button size="icon-sm" variant="ghost" onClick={() => setPreviewDoc(doc)}>
+                    <Button size="icon" variant="ghost" className="shrink-0" onClick={() => setPreviewDoc(doc)}>
                       <Eye className="size-3.5" />
                     </Button>
                   </li>

@@ -35,13 +35,13 @@ export const AdminDashboardPage = () => {
       </div>
 
       {isOverviewPending ? (
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+        <div className="grid grid-cols-1 min-[420px]:grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
           {Array.from({ length: 8 }).map((_, index) => (
             <Skeleton key={index} className="h-24 w-full rounded-2xl" />
           ))}
         </div>
       ) : (
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+        <div className="grid grid-cols-1 min-[420px]:grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
           <StatCard title="Total Registrations" value={overview?.totalRegistrations ?? 0} icon={Users} />
           <StatCard title="Today's Registrations" value={overview?.todayRegistrations ?? 0} icon={CalendarDays} />
           <StatCard title="Approved" value={overview?.approved ?? 0} icon={CheckCircle2} />
