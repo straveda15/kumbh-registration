@@ -8,19 +8,19 @@ export const DocumentPreviewDialog = ({ open, onOpenChange, document }) => {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle>{document.originalName || 'Document preview'}</DialogTitle>
+          <DialogTitle className="break-words">{document.originalName || 'Document preview'}</DialogTitle>
         </DialogHeader>
         {isPdf ? (
           <iframe
             src={document.url}
             title="Document preview"
-            className="h-[70vh] w-full rounded-lg bg-white"
+            className="h-[55vh] w-full rounded-lg bg-white sm:h-[70vh]"
           />
         ) : (
           <img
             src={document.url}
             alt={document.originalName || 'Document preview'}
-            className="max-h-[70vh] w-full rounded-lg object-contain"
+            className="max-h-[55vh] w-full rounded-lg object-contain sm:max-h-[70vh]"
           />
         )}
       </DialogContent>

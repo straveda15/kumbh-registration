@@ -37,13 +37,15 @@ export const DocumentCenterPage = () => {
       </div>
 
       <Tabs defaultValue="profilePhoto">
-        <TabsList className="w-full sm:w-fit">
-          {Object.entries(DOCUMENT_TYPE_META).map(([type, meta]) => (
-            <TabsTrigger key={type} value={type}>
-              {meta.label}
-            </TabsTrigger>
-          ))}
-        </TabsList>
+        <div className="overflow-x-auto">
+          <TabsList className="w-max sm:w-fit">
+            {Object.entries(DOCUMENT_TYPE_META).map(([type, meta]) => (
+              <TabsTrigger key={type} value={type} className="flex-none">
+                {meta.label}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </div>
         {Object.keys(DOCUMENT_TYPE_META).map((type) => (
           <TabsContent key={type} value={type} className="mt-4">
             <DocumentUploadCard type={type} />

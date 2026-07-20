@@ -134,7 +134,7 @@ export const LandingPage = () => {
       {/* How It Works */}
       <div className="flex flex-col gap-6">
         <h2 className="text-center text-xl font-semibold text-foreground">How It Works</h2>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
           {HOW_IT_WORKS_STEPS.map((item) => (
             <div key={item.step} className="glass-card flex flex-col gap-2 rounded-2xl p-5 text-center">
               <span className="mx-auto flex size-9 items-center justify-center rounded-full bg-primary/15 text-sm font-semibold text-primary">
