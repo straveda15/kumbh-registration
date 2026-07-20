@@ -8,7 +8,11 @@ const REFRESH_COOKIE_NAME = 'refreshToken';
 const refreshCookieOptions = {
   httpOnly: true,
   secure: config.isProduction,
-  sameSite: config.isProduction ? 'strict' : 'lax',
+  // 'strict' would never be sent on the cross-site XHR calls the frontend
+  // makes to a separately-hosted backend (different Vercel domain) — only
+  // 'none' is sent cross-site, and browsers require 'secure: true'
+  // alongside it, which is already the case here in production.
+  sameSite: config.isProduction ? 'none' : 'lax',
   path: '/api/v1/auth',
   maxAge: 7 * 24 * 60 * 60 * 1000,
 };
