@@ -7,24 +7,26 @@ export const FamilyMemberTable = ({ members, onEdit, onDelete }) => {
   const readOnly = !onEdit && !onDelete;
 
   return (
-    <div className="hidden overflow-hidden rounded-xl ring-1 ring-white/10 md:block">
-      <table className="w-full text-sm">
-        <thead className="bg-white/5 text-left text-xs tracking-wider text-muted-foreground uppercase">
+    <div className="hidden overflow-x-auto rounded-xl ring-1 ring-border md:block">
+      <table className="w-full min-w-[520px] text-sm">
+        <thead className="bg-muted text-left text-xs tracking-wider text-muted-foreground uppercase">
           <tr>
             <th className="px-4 py-3 font-medium">Name</th>
             <th className="px-4 py-3 font-medium">Relationship</th>
             <th className="px-4 py-3 font-medium">Age</th>
             <th className="px-4 py-3 font-medium">Gender</th>
+            <th className="px-4 py-3 font-medium">Aadhaar</th>
             {!readOnly && <th className="px-4 py-3 text-right font-medium">Actions</th>}
           </tr>
         </thead>
-        <tbody className="divide-y divide-white/5">
+        <tbody className="divide-y divide-border">
           {members.map((member) => (
             <tr key={member._id}>
               <td className="px-4 py-3 text-foreground">{member.data?.fullName}</td>
               <td className="px-4 py-3 text-muted-foreground">{member.data?.relationship}</td>
               <td className="px-4 py-3 text-muted-foreground">{member.data?.age}</td>
               <td className="px-4 py-3 text-muted-foreground capitalize">{member.data?.gender}</td>
+              <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{member.data?.aadhaarNumber || '—'}</td>
               {!readOnly && (
                 <td className="px-4 py-3">
                   <div className="flex justify-end gap-2">

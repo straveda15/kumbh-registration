@@ -49,38 +49,52 @@
 }
 
 :root {
-    --background: oklch(1 0 0);
-    --foreground: oklch(0.145 0 0);
-    --card: oklch(1 0 0);
-    --card-foreground: oklch(0.145 0 0);
-    --popover: oklch(1 0 0);
-    --popover-foreground: oklch(0.145 0 0);
-    --primary: oklch(0.205 0 0);
-    --primary-foreground: oklch(0.985 0 0);
-    --secondary: oklch(0.97 0 0);
-    --secondary-foreground: oklch(0.205 0 0);
-    --muted: oklch(0.97 0 0);
-    --muted-foreground: oklch(0.556 0 0);
-    --accent: oklch(0.97 0 0);
-    --accent-foreground: oklch(0.205 0 0);
-    --destructive: oklch(0.577 0.245 27.325);
-    --border: oklch(0.922 0 0);
-    --input: oklch(0.922 0 0);
-    --ring: oklch(0.708 0 0);
+    /* Balanced Blue + White enterprise theme (Azure Portal / Stripe
+       Dashboard-style) — predominantly white/off-white surfaces with a
+       single blue accent for hierarchy, not a blue-tinted app. */
+    --background: #F4F8FC;
+    --foreground: #0F172A;
+    --card: #FFFFFF;
+    --card-foreground: #0F172A;
+    --popover: #FFFFFF;
+    --popover-foreground: #0F172A;
+    --primary: #2563EB;
+    --primary-foreground: #FFFFFF;
+    --secondary: #EFF6FF;
+    --secondary-foreground: #1D4ED8;
+    --muted: #EDF4FB;
+    --muted-foreground: #64748B;
+    --accent: #DBEAFE;
+    --accent-foreground: #1D4ED8;
+    --destructive: #DC2626;
+    --border: #D6E4F5;
+    --input: #D6E4F5;
+    --ring: #2563EB;
     --chart-1: oklch(0.87 0 0);
     --chart-2: oklch(0.556 0 0);
     --chart-3: oklch(0.439 0 0);
     --chart-4: oklch(0.371 0 0);
     --chart-5: oklch(0.269 0 0);
     --radius: 0.625rem;
-    --sidebar: oklch(0.985 0 0);
-    --sidebar-foreground: oklch(0.145 0 0);
-    --sidebar-primary: oklch(0.205 0 0);
-    --sidebar-primary-foreground: oklch(0.985 0 0);
-    --sidebar-accent: oklch(0.97 0 0);
-    --sidebar-accent-foreground: oklch(0.205 0 0);
-    --sidebar-border: oklch(0.922 0 0);
-    --sidebar-ring: oklch(0.708 0 0);
+    --sidebar: #F7FAFF;
+    --sidebar-foreground: #0F172A;
+    --sidebar-primary: #2563EB;
+    --sidebar-primary-foreground: #FFFFFF;
+    --sidebar-accent: #E8F1FF;
+    --sidebar-accent-foreground: #2563EB;
+    --sidebar-border: #D6E4F5;
+    --sidebar-ring: #2563EB;
+
+    /* .glass-card (content cards) vs .glass-panel (sidebar/topbar chrome)
+       are deliberately different shades here — see the .glass-panel utility
+       below — unlike dark/wizard mode where both still share one value. */
+    --glass-bg: #FFFFFF;
+    --glass-border: #D6E4F5;
+    --panel-bg: #F7FAFF;
+    --panel-border: #D6E4F5;
+    /* Top navbar stays pure white — distinct from the sidebar's #F7FAFF —
+       see .topbar-panel below. */
+    --topbar-bg: #FFFFFF;
 }
 
 .dark {
@@ -121,6 +135,13 @@
     --glass-border: oklch(1 0 0 / 12%);
     --glow-primary: oklch(0.55 0.2 264 / 35%);
     --glow-accent: oklch(0.6 0.18 200 / 25%);
+
+    /* Dark mode keeps .glass-panel and .glass-card visually identical (as
+       they always have been) — only light mode (:root above) gives the
+       sidebar/topbar chrome its own distinct shade. */
+    --panel-bg: var(--glass-bg);
+    --panel-border: var(--glass-border);
+    --topbar-bg: var(--glass-bg);
 }
 
 @layer base {
@@ -133,9 +154,163 @@
   html {
     @apply font-sans;
     }
+  /* Belt-and-suspenders guarantee against horizontal scroll — the real
+     fixes are min-w-0 on the specific flex/grid items that were letting
+     content dictate a wider-than-viewport minimum size (see AdminLayout.jsx
+     and ChartCard.jsx), but this catches anything equivalent that shows up
+     later without silently reintroducing a page-level scrollbar. */
+  html, body {
+    overflow-x: hidden;
+    max-width: 100vw;
+    }
+}
+
+/* Scoped redesign for the pilgrim registration wizard only (WizardLayout
+   and everything it renders). Every shadcn/ui primitive already reads
+   color/radius through these same CSS custom properties, so overriding
+   them here re-skins Button/Input/Select/Card/Dialog/etc. for free inside
+   the wizard without touching those shared component files or leaking
+   into Admin/Operator/other Public pages, which keep the default theme
+   defined above. */
+.wizard-theme {
+    /* Light-mode default — matches the app's own Blue+White enterprise
+       palette (see :root above) so the wizard follows the global
+       light/dark toggle instead of forcing a fixed appearance. The dark
+       palette (the wizard's original, premium navy design) lives in
+       ".dark .wizard-theme" below and is unchanged from before. */
+    --background: #F4F8FC;
+    --foreground: #0F172A;
+    --card: #FFFFFF;
+    --card-foreground: #0F172A;
+    --popover: #FFFFFF;
+    --popover-foreground: #0F172A;
+    /* Single accent for the whole wizard: the exact blue already used by
+       the Step Progress component and the header's "Already Registered?"
+       Login link (see .wizard-stepper-classic below and
+       WizardLayout.jsx) — not a new shade. Was #FF8C1A (orange)
+       until the wizard was standardized onto the app-wide blue accent. */
+    --primary: #2563EB;
+    --primary-foreground: #FFFFFF;
+    --secondary: #EFF6FF;
+    --secondary-foreground: #1D4ED8;
+    --muted: #EDF4FB;
+    --muted-foreground: #64748B;
+    --accent: #DBEAFE;
+    --accent-foreground: #1D4ED8;
+    --destructive: #DC2626;
+    --border: #D6E4F5;
+    --input: #D6E4F5;
+    --ring: #2563EB;
+    --radius: 1rem;
+
+    /* glass-card/glass-panel utilities (used by the existing step Card
+       chrome) become solid premium cards purely by making these opaque —
+       no need to touch every Card usage individually. */
+    --glass-bg: #FFFFFF;
+    --glass-border: #D6E4F5;
+    --panel-bg: #F7FAFF;
+    --panel-border: #D6E4F5;
+
+    /* Extra tokens the shadcn set doesn't have a slot for. */
+    --w-muted: #64748B;
+    --w-card-2: #EFF6FF;
+    --w-success: #16A34A;
+    /* Darker step of the same blue (matches the Login button's hover
+       shade). */
+    --w-accent-hover: #1D4ED8;
+
+    color-scheme: light;
+    background-color: var(--background);
+    color: var(--foreground);
+}
+
+.dark .wizard-theme {
+    --background: #07131F;
+    --foreground: #FFFFFF;
+    --card: #102133;
+    --card-foreground: #FFFFFF;
+    --popover: #13283E;
+    --popover-foreground: #FFFFFF;
+    --primary: oklch(0.72 0.16 264);
+    --primary-foreground: #FFFFFF;
+    --secondary: #13283E;
+    --secondary-foreground: #FFFFFF;
+    --muted: #13283E;
+    --muted-foreground: #B2BFCD;
+    --accent: #1B3552;
+    --accent-foreground: #FFFFFF;
+    --destructive: #FF6B6B;
+    --border: rgba(255, 255, 255, 0.08);
+    --input: #11253A;
+    --ring: oklch(0.72 0.16 264);
+
+    --glass-bg: #102133;
+    --glass-border: rgba(255, 255, 255, 0.08);
+    --panel-bg: #102133;
+    --panel-border: rgba(255, 255, 255, 0.08);
+
+    --w-muted: #7E8A97;
+    --w-card-2: #13283E;
+    --w-success: #30C48D;
+    /* Was #FF9D32 (orange hover). */
+    --w-accent-hover: oklch(0.64 0.16 264);
+
+    color-scheme: dark;
+}
+
+/* .glass-card's box-shadow needs its own explicit guarantee inside the
+   wizard (light default here, dark override below) rather than relying on
+   the top-level .dark .glass-card rule, since specificity ordering between
+   unrelated selectors isn't guaranteed. */
+.wizard-theme .glass-card {
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 8px 20px rgba(37, 99, 235, 0.06);
+}
+
+.dark .wizard-theme .glass-card {
+    box-shadow: 0 8px 32px oklch(0 0 0 / 25%);
+}
+
+/* Reverts just the tokens the Step Progress component reads back to the
+   app-wide values (:root / .dark, defined above) — everything else in the
+   wizard keeps its own theme from .wizard-theme; only the stepper is meant
+   to look like it belongs to Admin/Operator/Dashboard instead. Wrapping the
+   stepper's own markup in this class is enough: CSS custom properties
+   resolve per-element at used-value time, so a descendant's own
+   declaration always wins over the .wizard-theme values it's nested
+   inside, the same mechanism .wizard-theme itself relies on over .dark. */
+.wizard-stepper-classic {
+    --card: #FFFFFF;
+    --card-foreground: #0F172A;
+    --primary: #2563EB;
+    --primary-foreground: #FFFFFF;
+    --muted: #EDF4FB;
+    --muted-foreground: #64748B;
+    --border: #D6E4F5;
+    --glass-bg: #FFFFFF;
+    --glass-border: #D6E4F5;
+}
+
+.dark .wizard-stepper-classic {
+    --card: oklch(0.21 0.025 264 / 60%);
+    --card-foreground: oklch(0.96 0.01 264);
+    --primary: oklch(0.72 0.16 264);
+    --primary-foreground: oklch(0.14 0.02 264);
+    --muted: oklch(0.27 0.03 264);
+    --muted-foreground: oklch(0.7 0.02 264);
+    --border: oklch(1 0 0 / 12%);
+    --glass-bg: oklch(1 0 0 / 6%);
+    --glass-border: oklch(1 0 0 / 12%);
 }
 
 @layer utilities {
+  .wizard-bg {
+    background-image:
+      radial-gradient(60rem 40rem at 10% -10%, oklch(0.72 0.16 264 / 10%), transparent 55%),
+      radial-gradient(50rem 35rem at 110% 10%, oklch(0.72 0.16 264 / 6%), transparent 50%);
+    background-color: var(--background);
+    background-attachment: fixed;
+  }
+
   .app-background {
     background-image:
       radial-gradient(60rem 40rem at 15% -10%, var(--glow-primary), transparent 60%),
@@ -145,10 +320,19 @@
   }
 
   .glass-panel {
-    background: var(--glass-bg);
-    border: 1px solid var(--glass-border);
+    background: var(--panel-bg);
+    border: 1px solid var(--panel-border);
     backdrop-filter: blur(16px);
     -webkit-backdrop-filter: blur(16px);
+  }
+
+  /* Compound selector so this deterministically wins over the plain
+     .glass-panel rule above on specificity, regardless of generated-CSS
+     source order — used on AdminTopbar/OperatorLayout's header, which
+     wants a distinct (pure white in light mode) background from the
+     sidebar despite sharing .glass-panel's blur/border. */
+  .glass-panel.topbar-panel {
+    background: var(--topbar-bg);
   }
 
   .glass-card {
@@ -156,6 +340,54 @@
     border: 1px solid var(--glass-border);
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
+    /* Soft, mostly-neutral shadow with a faint blue cast — appropriate for
+       a white card on a light surface. Dark mode (and the wizard, which
+       always forces color-scheme: dark) restores the original shadow
+       immediately below, unchanged. */
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 8px 20px rgba(37, 99, 235, 0.06);
+  }
+
+  .dark .glass-card {
     box-shadow: 0 8px 32px oklch(0 0 0 / 25%);
+  }
+}
+
+/* Printing (Entry Pass "Print" button, window.print()). Two problems this
+   fixes: (1) dark-mode text/surface tokens are near-white-on-near-black,
+   which prints as illegible pale-gray-on-white once the screen's dark
+   background disappears on paper — force every token back to readable
+   light-mode values regardless of which theme is active on screen; (2)
+   backdrop-filter blur renders as a solid black box in print in some
+   Chromium versions — drop it and the shadow (which just wastes ink)
+   entirely for print output. Layout-hiding for the surrounding app chrome
+   (sidebar/topbar/nav) is handled separately via Tailwind's print:hidden
+   utility on those elements, not here. */
+@media print {
+  :root,
+  .dark,
+  .wizard-theme,
+  .dark .wizard-theme {
+    --background: #ffffff;
+    --foreground: #0f172a;
+    --card: #ffffff;
+    --card-foreground: #0f172a;
+    --popover: #ffffff;
+    --popover-foreground: #0f172a;
+    --muted: #f1f5f9;
+    --muted-foreground: #475569;
+    --border: #d6e4f5;
+    --glass-bg: #ffffff;
+    --glass-border: #d6e4f5;
+  }
+
+  body {
+    background: #ffffff !important;
+  }
+
+  .glass-card,
+  .glass-panel {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    box-shadow: none !important;
   }
 }

@@ -1,8 +1,9 @@
 import { z } from 'zod';
+import { RELATIONSHIP_OPTIONS } from '@/utils/relationshipOptions';
 
 export const emergencyContactSchema = z.object({
   contactName: z.string().trim().min(2, 'Contact name is required'),
-  relationship: z.string().trim().min(1, 'Relationship is required'),
+  relationship: z.enum(RELATIONSHIP_OPTIONS, { message: 'Relationship is required' }),
   phone: z
     .string()
     .trim()

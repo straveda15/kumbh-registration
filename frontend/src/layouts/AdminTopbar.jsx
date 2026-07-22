@@ -4,13 +4,10 @@ import { useTheme } from 'next-themes';
 import {
   Menu,
   Search,
-  Bell,
   Sun,
   Moon,
   LogOut,
-  UserCog,
   UserRound,
-  Settings,
   ChevronRight,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -27,31 +24,23 @@ import {
   DropdownMenu,
   DropdownMenuTrigger,
   DropdownMenuContent,
-  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuItem,
 } from '@/components/ui/dropdown-menu';
-import { Badge } from '@/components/ui/badge';
 import { AdminNavList } from './AdminSidebar';
 import { AdminSearchCommand } from '@/features/admin/components/AdminSearchCommand';
 import { useAdminUiStore } from '@/store/useAdminUiStore';
 import { useAdminAuthStore } from '@/store/useAdminAuthStore';
 import { useAdminLogout } from '@/features/admin/hooks/useAdminAuth';
-import { useAdminRecentActivity } from '@/features/admin/hooks/useAdminAnalytics';
-import { getActivityLabel } from '@/utils/activityLabels';
-import { formatDateTime } from '@/utils/formatDate';
 
 const BREADCRUMB_LABELS = {
   admin: 'Admin',
   dashboard: 'Dashboard',
   registrations: 'Registrations',
-  approvals: 'Approvals',
+  approvals: 'Pending Approvals',
   events: 'Events',
   'qr-codes': 'QR Codes',
-  operators: 'Operators',
   analytics: 'Analytics',
-  notifications: 'Notifications',
-  settings: 'Settings',
   profile: 'Profile',
 };
 
@@ -77,7 +66,6 @@ export const AdminTopbar = () => {
   const isMobileDrawerOpen = useAdminUiStore((state) => state.isMobileDrawerOpen);
   const setMobileDrawerOpen = useAdminUiStore((state) => state.setMobileDrawerOpen);
   const logoutMutation = useAdminLogout();
-  const { data: recentActivity } = useAdminRecentActivity(8);
 
   const [searchOpen, setSearchOpen] = useState(false);
 
@@ -89,7 +77,7 @@ export const AdminTopbar = () => {
   };
 
   return (
-    <header className="glass-panel sticky top-0 z-30 flex items-center gap-3 border-b border-white/10 px-4 py-3">
+    <header className="glass-panel topbar-panel sticky top-0 z-30 flex items-center gap-3 border-b border-border px-4 py-3 print:hidden">
       <Button
         variant="ghost"
         size="icon-sm"
@@ -130,51 +118,12 @@ export const AdminTopbar = () => {
       <div className="flex flex-1 items-center justify-end gap-2">
         <Button
           variant="outline"
-          size="sm"
-          onClick={() => setSearchOpen(true)}
-          className="gap-1.5 text-muted-foreground"
-        >
-          <Search className="size-3.5" /> Search
-        </Button>
-
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon-sm" className="relative" aria-label="Recent activity">
-              <Bell className="size-4" />
-              {recentActivity?.length > 0 && (
-                <Badge className="absolute -top-1 -right-1 flex size-4 items-center justify-center p-0 text-[10px]">
-                  {Math.min(recentActivity.length, 9)}
-                </Badge>
-              )}
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-80">
-            <DropdownMenuLabel>Recent Activity</DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            {recentActivity?.length ? (
-              recentActivity.map((entry) => (
-                <div key={entry._id} className="flex flex-col gap-0.5 px-2 py-1.5 text-xs">
-                  <span className="text-foreground">{getActivityLabel(entry.action)}</span>
-                  <span className="text-muted-foreground">{formatDateTime(entry.createdAt)}</span>
-                </div>
-              ))
-            ) : (
-              <p className="px-2 py-1.5 text-xs text-muted-foreground">No recent activity.</p>
-            )}
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => navigate('/admin/notifications')}>
-              View all notifications
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-
-        <Button
-          variant="ghost"
           size="icon-sm"
-          onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-          aria-label="Toggle theme"
+          onClick={() => setSearchOpen(true)}
+          aria-label="Search"
+          className="gap-1.5 border-primary/20 bg-accent/50 text-muted-foreground hover:border-primary/40 hover:bg-accent sm:size-auto sm:px-3 sm:py-2 dark:border-input dark:bg-input/30"
         >
-          {theme === 'dark' ? <Sun className="size-4" /> : <Moon className="size-4" />}
+          <Search className="size-3.5" /> <span className="hidden sm:inline">Search</span>
         </Button>
 
         <DropdownMenu>
@@ -186,25 +135,17 @@ export const AdminTopbar = () => {
               <span className="hidden text-sm sm:inline">{admin?.name || 'Admin'}</span>
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuLabel>
-              <p className="text-sm font-medium text-foreground">{admin?.name}</p>
-              <p className="text-xs font-normal text-muted-foreground">{admin?.email}</p>
-            </DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem disabled>
-              <UserCog className="size-4" /> {admin?.role}
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
+          <DropdownMenuContent align="end" className="w-48">
             <DropdownMenuItem onClick={() => navigate('/admin/profile')}>
               <UserRound className="size-4" /> Profile
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => navigate('/admin/settings')}>
-              <Settings className="size-4" /> Settings
+            <DropdownMenuItem onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>
+              {theme === 'dark' ? <Sun className="size-4" /> : <Moon className="size-4" />}
+              {theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={handleLogout}>
-              <LogOut className="size-4" /> Log out
+              <LogOut className="size-4" /> Logout
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

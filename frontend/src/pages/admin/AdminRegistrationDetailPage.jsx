@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useParams, useSearchParams, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
@@ -14,8 +14,6 @@ import {
   FileText,
   Eye,
   QrCode,
-  History,
-  ShieldAlert,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -35,28 +33,12 @@ import { FamilyMemberCard } from '@/features/registration-wizard/components/Fami
 import { DocumentPreviewDialog } from '@/features/documents/components/DocumentPreviewDialog';
 import {
   useRegistrationDetail,
-  useRegistrationAudit,
   useRegistrationDocuments,
-  useRegistrationActivity,
 } from '@/features/admin/hooks/useRegistrationDetail';
 import { useApprovalActions } from '@/features/admin/hooks/useApprovalActions';
-import { getActivityLabel } from '@/utils/activityLabels';
 import { formatDateTime } from '@/utils/formatDate';
 import { generatePassPdf } from '@/utils/generatePassPdf';
-
-const ActivityList = ({ items, emptyLabel }) =>
-  items?.length ? (
-    <ul className="flex flex-col gap-3">
-      {items.map((entry) => (
-        <li key={entry._id} className="flex items-start justify-between gap-3 text-xs">
-          <span className="text-foreground">{getActivityLabel(entry.action)}</span>
-          <span className="shrink-0 text-muted-foreground">{formatDateTime(entry.createdAt)}</span>
-        </li>
-      ))}
-    </ul>
-  ) : (
-    <p className="text-xs text-muted-foreground">{emptyLabel}</p>
-  );
+import { getRegistrationStatusMeta } from '@/utils/registrationStatus';
 
 export const AdminRegistrationDetailPage = () => {
   const { id } = useParams();
@@ -64,13 +46,10 @@ export const AdminRegistrationDetailPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTab = searchParams.get('tab') || 'personal';
   const shouldAutoPrint = searchParams.get('print') === '1';
-  const passRef = useRef(null);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
 
   const { data, isPending, isError, error } = useRegistrationDetail(id);
-  const { data: audit } = useRegistrationAudit(id);
   const { data: documents } = useRegistrationDocuments(id);
-  const { data: activity } = useRegistrationActivity(id);
   const actions = useApprovalActions(id);
 
   const [dialog, setDialog] = useState(null); // 'approve' | 'reject' | 'requestInfo' | 'suspend' | 'restore' | 'delete' | null
@@ -131,10 +110,25 @@ export const AdminRegistrationDetailPage = () => {
   };
 
   const handleDownload = async () => {
-    if (!passRef.current) return;
+    if (!data?.digitalPass) return;
     setIsGeneratingPdf(true);
     try {
-      await generatePassPdf(passRef.current, `${registration.registrationNumber || 'digital-pass'}.pdf`);
+      const isRevoked = data.digitalPass.status === 'revoked';
+      const isVerified = Boolean(data.digitalPass.passActivated) && !isRevoked;
+      const verificationLabel = isRevoked ? 'Revoked' : isVerified ? 'Verified' : 'Pending On-Site Verification';
+
+      await generatePassPdf(
+        {
+          pilgrimName: data.personal?.data?.fullName,
+          registrationNumber: registration.registrationNumber,
+          eventName: data.event?.name,
+          statusLabel: getRegistrationStatusMeta(status).label,
+          verificationLabel,
+          accommodation: data.accommodation?.data?.address || data.accommodation?.data?.type,
+          qrImage: data.digitalPass.qrImage,
+        },
+        `${registration.registrationNumber || 'digital-pass'}.pdf`
+      );
     } catch {
       toast.error('Could not generate PDF. Try Print instead.');
     } finally {
@@ -203,9 +197,7 @@ export const AdminRegistrationDetailPage = () => {
           <TabsTrigger value="travel">Travel</TabsTrigger>
           <TabsTrigger value="accommodation">Accommodation</TabsTrigger>
           <TabsTrigger value="family">Family</TabsTrigger>
-          <TabsTrigger value="documents">Documents</TabsTrigger>
-          <TabsTrigger value="activity">Activity</TabsTrigger>
-          <TabsTrigger value="audit">Audit</TabsTrigger>
+          {documents?.length > 0 && <TabsTrigger value="documents">Documents</TabsTrigger>}
           <TabsTrigger value="qr">QR Info</TabsTrigger>
           <TabsTrigger value="pass">Digital Pass</TabsTrigger>
         </TabsList>
@@ -254,9 +246,9 @@ export const AdminRegistrationDetailPage = () => {
           </SummaryCard>
         </TabsContent>
 
-        <TabsContent value="documents" className="mt-4">
-          <SummaryCard title="Documents" icon={FileText}>
-            {documents?.length ? (
+        {documents?.length > 0 && (
+          <TabsContent value="documents" className="mt-4">
+            <SummaryCard title="Documents" icon={FileText}>
               <ul className="flex flex-col gap-2">
                 {documents.map((doc) => (
                   <li key={doc._id} className="flex items-center justify-between gap-3 rounded-xl bg-white/5 p-3 text-xs">
@@ -270,46 +262,9 @@ export const AdminRegistrationDetailPage = () => {
                   </li>
                 ))}
               </ul>
-            ) : (
-              <p className="text-xs text-muted-foreground">No documents uploaded.</p>
-            )}
-          </SummaryCard>
-        </TabsContent>
-
-        <TabsContent value="activity" className="mt-4">
-          <SummaryCard title="Activity Timeline" icon={History}>
-            <ActivityList items={activity} emptyLabel="No activity yet." />
-          </SummaryCard>
-        </TabsContent>
-
-        <TabsContent value="audit" className="mt-4">
-          <SummaryCard title="Audit History" icon={ShieldAlert}>
-            {audit?.length ? (
-              <ul className="flex flex-col gap-4">
-                {audit.map((entry) => (
-                  <li key={entry._id} className="rounded-xl bg-white/5 p-3 text-xs">
-                    <div className="flex items-center justify-between">
-                      <span className="font-medium text-foreground">{entry.action}</span>
-                      <span className="text-muted-foreground">{formatDateTime(entry.createdAt)}</span>
-                    </div>
-                    <p className="mt-1 text-muted-foreground">
-                      By {entry.performedBy?.name || 'System'}
-                      {entry.reason ? ` — ${entry.reason}` : ''}
-                    </p>
-                    {entry.afterState?.registrationStatus && (
-                      <p className="mt-1 text-muted-foreground">
-                        Status: {entry.beforeState?.registrationStatus || '—'} →{' '}
-                        {entry.afterState.registrationStatus}
-                      </p>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="text-xs text-muted-foreground">No audit entries yet.</p>
-            )}
-          </SummaryCard>
-        </TabsContent>
+            </SummaryCard>
+          </TabsContent>
+        )}
 
         <TabsContent value="qr" className="mt-4">
           <SummaryCard title="QR Information" icon={QrCode}>
@@ -336,7 +291,6 @@ export const AdminRegistrationDetailPage = () => {
           ) : (
             <div className="mx-auto flex max-w-sm flex-col gap-4">
               <DigitalPassCard
-                ref={passRef}
                 digitalPass={digitalPass}
                 personal={personal?.data}
                 accommodation={accommodation?.data}

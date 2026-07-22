@@ -6,6 +6,13 @@ import { ApiError } from '../utils/ApiError.js';
 import { generateUniqueCode } from '../utils/generateCode.js';
 import config from '../config/env.js';
 
+// Every event has AT MOST one QR record — enforced here rather than by a
+// unique index, since "replace the existing one" is a normal, expected
+// operation (not a conflict to reject). A second generate/regenerate for an
+// event that already has a QR overwrites that same document in place
+// (new uniqueCode/url/image, scan count reset) instead of creating another
+// row, so the old code stops resolving immediately and there's never more
+// than one QRCode document live per event.
 export const generateQR = async ({ eventId, expiresAt }, createdBy) => {
   const event = await Event.findById(eventId);
   if (!event) {
@@ -18,18 +25,28 @@ export const generateQR = async ({ eventId, expiresAt }, createdBy) => {
   // for a physical phone on the same Wi-Fi network.
   const url = `${config.frontendUrl}/register/${uniqueCode}`;
   const image = await QRCodeLib.toDataURL(url);
-
-  const qr = await QRCode.create({
-    eventId,
+  const fields = {
     uniqueCode,
     eventCode: uniqueCode,
     url,
     image,
     qrUrl: url,
     qrImage: image,
+    status: QR_STATUS.ACTIVE,
+    scanCount: 0,
+    lastScannedAt: null,
     expiresAt: expiresAt || null,
     createdBy,
-  });
+  };
+
+  if (event.qrCode) {
+    const existing = await QRCode.findByIdAndUpdate(event.qrCode, fields, { new: true });
+    if (existing) return existing;
+    // The referenced QR document is gone (e.g. manually deleted) — fall
+    // through and create a fresh one below.
+  }
+
+  const qr = await QRCode.create({ eventId, ...fields });
 
   event.qrCode = qr._id;
   await event.save();
@@ -37,19 +54,31 @@ export const generateQR = async ({ eventId, expiresAt }, createdBy) => {
   return qr;
 };
 
+// Resolved through each Event's own `qrCode` reference — the single source
+// of truth for "the current QR for this event" — rather than querying
+// QRCode by eventId directly, so any pre-existing duplicate/orphaned QR
+// documents (from before regenerate stopped creating new rows) are never
+// surfaced here even if they're still sitting in the collection.
 export const listQR = async ({ eventId, status } = {}) => {
-  const filter = {};
-  if (eventId) filter.eventId = eventId;
+  const eventFilter = {};
+  if (eventId) eventFilter._id = eventId;
+
+  const events = await Event.find(eventFilter).select('qrCode').lean();
+  const qrIds = events.map((event) => event.qrCode).filter(Boolean);
+
+  const filter = { _id: { $in: qrIds } };
   if (status) filter.status = status;
+
   return QRCode.find(filter).populate('eventId', 'name status').sort({ createdAt: -1 });
 };
 
-export const regenerateQR = async (eventId, createdBy) => {
-  const event = await Event.findById(eventId);
-  if (!event) throw ApiError.notFound('Event not found');
-  if (event.qrCode) await updateQR(event.qrCode, { status: QR_STATUS.DISABLED });
-  return generateQR({ eventId }, createdBy);
-};
+export const regenerateQR = async (eventId, createdBy) => generateQR({ eventId }, createdBy);
+
+// Atomic — avoids the lost-update race a read/increment/save cycle would
+// have under concurrent scans (two requests reading the same scanCount
+// before either writes back).
+export const incrementScanCount = (qrId) =>
+  QRCode.findByIdAndUpdate(qrId, { $inc: { scanCount: 1 }, $set: { lastScannedAt: new Date() } }, { new: true });
 
 const autoExpireIfNeeded = async (qr) => {
   if (qr.status === QR_STATUS.ACTIVE && qr.expiresAt && qr.expiresAt.getTime() < Date.now()) {
@@ -72,9 +101,7 @@ export const getQRByCode = async (code, { trackScan = false } = {}) => {
     if (qr.status !== QR_STATUS.ACTIVE) {
       throw ApiError.badRequest(`QR code is ${qr.status}`);
     }
-    qr.scanCount += 1;
-    qr.lastScannedAt = new Date();
-    await qr.save();
+    return incrementScanCount(qr._id);
   }
 
   return qr;
@@ -150,6 +177,7 @@ export default {
   generateQR,
   listQR,
   regenerateQR,
+  incrementScanCount,
   getQRByCode,
   validateQRForRegistration,
   validateQRById,

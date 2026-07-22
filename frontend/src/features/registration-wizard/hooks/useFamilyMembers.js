@@ -7,7 +7,11 @@ import {
 } from '@/api/registration.api';
 import { DRAFT_QUERY_KEY } from './useStartOrResumeDraft';
 
-const queryKeyFor = (code) => [...DRAFT_QUERY_KEY, code];
+// See useSaveAccountCredentials for why the 'pilgrim-session' fallback is
+// required — a logged-in pilgrim with no draft `code` would otherwise
+// invalidate a cache entry that doesn't match what useRegistrationSnapshot
+// actually reads.
+const queryKeyFor = (code) => [...DRAFT_QUERY_KEY, code || 'pilgrim-session'];
 
 // No separate GET /registration/family query — getDraft (already fetched
 // by useStartOrResumeDraft) already returns the full familyMembers array,

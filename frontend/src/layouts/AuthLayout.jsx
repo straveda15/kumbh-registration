@@ -2,14 +2,12 @@ import { motion } from 'framer-motion';
 import { BackButton } from '@/components/shared/BackButton';
 
 // Shared centered-card chrome for login pages — extracted from
-// AdminLoginPage so OperatorLoginPage/PilgrimLoginPage don't duplicate the
-// same wrapper markup. Icon/title/subtitle are the only per-role
-// differences.
+// AdminLoginPage so PilgrimLoginPage doesn't duplicate the same wrapper
+// markup. Icon/title/subtitle are the only per-role differences.
 //
-// AuthLayout is used exclusively by the three login pages (Admin/Operator/
-// Pilgrim) — the only places in the app a "Back to Home" button should
-// ever appear (see BackButton) — so it's rendered unconditionally here,
-// not per-page.
+// AuthLayout is used exclusively by the two login pages (Admin/Pilgrim) —
+// the only places in the app a "Back to Home" button should ever appear
+// (see BackButton) — so it's rendered unconditionally here, not per-page.
 export const AuthLayout = ({ icon: Icon, title, subtitle, children }) => (
   <div className="mx-auto flex min-h-screen w-full max-w-md flex-col items-center justify-center gap-6 px-4">
     <BackButton className="self-start" />

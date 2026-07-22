@@ -21,6 +21,7 @@ import { STEP_STATUS } from '../constants/stepStatus.js';
 import { WIZARD_STEPS, WIZARD_STEP_VALUES } from '../constants/wizardSteps.js';
 import { EVENT_STATUS } from '../constants/eventStatus.js';
 import { DIGITAL_PASS_STATUS } from '../constants/digitalPassStatus.js';
+import { getStateCode } from '../constants/stateCodes.js';
 import config from '../config/env.js';
 import * as qrService from './qr.service.js';
 import * as dashboardService from './dashboard.service.js';
@@ -119,6 +120,17 @@ export const startRegistration = async ({ code }, meta = {}) => {
     qrId: qr._id,
     userId: user._id,
   });
+
+  // Counts as exactly one successful scan — right here, once per new
+  // registration actually created through this QR. Refreshing/resuming an
+  // in-progress draft never reaches this line again (useStartOrResumeDraft
+  // on the frontend resumes via getDraft() instead once a session exists),
+  // so a page refresh can never double-count. The old public GET
+  // /api/v1/qr/:code route also tracked scans, but nothing in the app's
+  // real flow ever calls it — the QR encodes a link straight into this
+  // wizard, not that API endpoint — so it was silently dead code and
+  // scanCount never actually moved.
+  await qrService.incrementScanCount(qr._id);
 
   await Promise.all([
     PersonalInformation.create({ userId: user._id, registrationId: registration._id }),
@@ -323,10 +335,9 @@ export const deleteFamilyMember = async (registration, memberId, meta = {}) => {
   return buildWizardProgress(registration);
 };
 
-// Shared by getDraft (citizen wizard/dashboard), getRegistrationById
-// (admin detail view, which remaps these into its own response shape),
-// and operator.service.js's verifyPass (gate verification) — one place
-// for this Promise.all instead of three separate copies.
+// Shared by getDraft (citizen wizard/dashboard) and getRegistrationById
+// (admin detail view, which remaps these into its own response shape) —
+// one place for this Promise.all instead of two separate copies.
 export const assembleRegistrationDetail = async (registration) => {
   const [
     personalInformation,
@@ -437,19 +448,37 @@ export const submitRegistration = async (registration, meta = {}) => {
   const yearStart = new Date(`${year}-01-01T00:00:00.000Z`);
   const yearEnd = new Date(`${year + 1}-01-01T00:00:00.000Z`);
 
+  // Registration Number format is KP{year}{stateCode}{sequence}, where
+  // stateCode comes from the pilgrim's own State answer (Personal
+  // Information) rather than the fixed, deployment-wide
+  // PILGRIM_ID_REGION_CODE that pilgrimId below still uses — the two
+  // identifiers are deliberately generated independently (separate counts,
+  // separate formats) so this change can't alter pilgrimId's existing
+  // behavior at all.
+  const personalInfo = await PersonalInformation.findOne({ registrationId: registration._id });
+  const stateCode = getStateCode(personalInfo?.data?.state);
+
   let registrationNumber;
   let pilgrimId;
   let attempt = 0;
   let succeeded = false;
 
   while (attempt < MAX_SUBMIT_RETRIES && !succeeded) {
-    const count = await Registration.countDocuments({
-      registrationStatus: { $ne: REGISTRATION_STATUS.DRAFT },
-      submittedAt: { $gte: yearStart, $lt: yearEnd },
-    });
-    const sequence = String(count + 1 + attempt).padStart(6, '0');
-    registrationNumber = `REG-${year}-${sequence}`;
-    pilgrimId = `KP${year}${config.pilgrimIdRegionCode}${sequence}`;
+    const [stateScopedCount, globalCount] = await Promise.all([
+      Registration.countDocuments({
+        registrationStatus: { $ne: REGISTRATION_STATUS.DRAFT },
+        submittedAt: { $gte: yearStart, $lt: yearEnd },
+        registrationNumber: { $regex: `^KP${year}${stateCode}` },
+      }),
+      Registration.countDocuments({
+        registrationStatus: { $ne: REGISTRATION_STATUS.DRAFT },
+        submittedAt: { $gte: yearStart, $lt: yearEnd },
+      }),
+    ]);
+    const stateSequence = String(stateScopedCount + 1 + attempt).padStart(6, '0');
+    const globalSequence = String(globalCount + 1 + attempt).padStart(6, '0');
+    registrationNumber = `KP${year}${stateCode}${stateSequence}`;
+    pilgrimId = `KP${year}${config.pilgrimIdRegionCode}${globalSequence}`;
 
     try {
       registration.registrationStatus = REGISTRATION_STATUS.SUBMITTED;
@@ -837,7 +866,17 @@ export const listRegistrations = async (query) => {
 
   const match = {};
   if (query.eventId) match.eventId = new mongoose.Types.ObjectId(query.eventId);
-  if (query.status) match.registrationStatus = query.status;
+  // The admin Registrations page (and Pending Approvals, which layers its
+  // own status=submitted on top of this) never shows drafts — a draft is a
+  // registration nobody has actually submitted yet, so it has no business
+  // appearing in a list of pilgrims. Explicitly requesting status=draft
+  // (e.g. a hand-crafted URL) is deliberately ignored rather than honored,
+  // same as any other status falls back to "everything except draft".
+  if (query.status && query.status !== REGISTRATION_STATUS.DRAFT) {
+    match.registrationStatus = query.status;
+  } else {
+    match.registrationStatus = { $ne: REGISTRATION_STATUS.DRAFT };
+  }
   if (query.dateFrom || query.dateTo) {
     match.submittedAt = {};
     if (query.dateFrom) match.submittedAt.$gte = new Date(query.dateFrom);
@@ -895,10 +934,10 @@ export const listRegistrations = async (query) => {
   const [result] = await Registration.aggregate(pipeline);
   const total = result.totalCount[0]?.count ?? 0;
 
-  const registrations = await Registration.populate(result.data, {
-    path: 'eventId',
-    select: 'name status startDate endDate',
-  });
+  const registrations = await Registration.populate(result.data, [
+    { path: 'eventId', select: 'name status startDate endDate' },
+    { path: 'qrId', select: 'status' },
+  ]);
 
   return { registrations, meta: buildPaginationMeta({ page, limit, total }) };
 };
@@ -915,6 +954,14 @@ export const getRegistrationById = async (id) => {
     .populate('reviewedBy', 'name email');
 
   if (!registration) {
+    throw ApiError.notFound('Registration not found');
+  }
+
+  // Same rule as listRegistrations: a draft is unsubmitted, half-filled
+  // data that has no business appearing in the admin Registration section —
+  // block direct access by id too, not just the list, so there's no path
+  // (e.g. a guessed/typed URL) into a draft's detail view.
+  if (registration.registrationStatus === REGISTRATION_STATUS.DRAFT) {
     throw ApiError.notFound('Registration not found');
   }
 

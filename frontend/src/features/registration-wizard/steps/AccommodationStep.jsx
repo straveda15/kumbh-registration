@@ -59,7 +59,7 @@ export const AccommodationStep = ({ code, initialData }) => {
             form.setValue('type', value, { shouldValidate: true, shouldDirty: true })
           }
         >
-          <SelectTrigger className="w-full">
+          <SelectTrigger className="h-14 w-full px-4">
             <SelectValue placeholder="Select accommodation type" />
           </SelectTrigger>
           <SelectContent>
@@ -73,7 +73,7 @@ export const AccommodationStep = ({ code, initialData }) => {
       </WizardField>
 
       <WizardField label="Accommodation Address" error={form.formState.errors.address?.message}>
-        <Input {...form.register('address')} placeholder="Where you'll be staying" />
+        <Input className="h-14 px-4" {...form.register('address')} placeholder="Where you'll be staying" />
       </WizardField>
     </WizardStepShell>
   );

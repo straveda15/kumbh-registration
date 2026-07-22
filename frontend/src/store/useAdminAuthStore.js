@@ -12,6 +12,10 @@ export const useAdminAuthStore = create(
 
       setSession: ({ accessToken, admin }) => set({ accessToken, admin }),
 
+      // Profile edits update the admin record without touching the
+      // access token — unlike setSession, which is only for login/refresh.
+      setAdmin: (admin) => set({ admin }),
+
       clearSession: () => set({ accessToken: null, admin: null }),
     }),
     {

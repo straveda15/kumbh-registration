@@ -50,4 +50,14 @@ export const getProfile = asyncHandler(async (req, res) => {
   return new ApiResponse(200, { admin: req.admin.toSafeObject() }, 'Profile fetched').send(res);
 });
 
-export default { login, refresh, logout, getProfile };
+export const updateProfile = asyncHandler(async (req, res) => {
+  const admin = await authService.updateProfile(req.admin._id, req.body);
+  return new ApiResponse(200, { admin }, 'Profile updated successfully').send(res);
+});
+
+export const changePassword = asyncHandler(async (req, res) => {
+  await authService.changePassword(req.admin._id, req.body);
+  return new ApiResponse(200, {}, 'Password changed successfully').send(res);
+});
+
+export default { login, refresh, logout, getProfile, updateProfile, changePassword };

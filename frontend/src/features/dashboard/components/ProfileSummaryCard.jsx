@@ -12,8 +12,10 @@ export const ProfileSummaryCard = ({ data = {}, detailed = false, className, act
     <DataRow label="Village / Town" value={data.village} />
     {detailed && (
       <>
+        <DataRow label="Alternate Mobile Number" value={data.alternateMobile} />
         <DataRow label="Date of Birth" value={data.dob} />
         <DataRow label="Nationality" value={data.nationality} />
+        <DataRow label="Aadhaar Card Number" value={data.aadhaarNumber} />
         <DataRow label="Preferred Language" value={data.language} />
         <DataRow label="Address" value={data.address} />
         <DataRow label="State" value={data.state} />

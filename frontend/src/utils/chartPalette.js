@@ -5,7 +5,7 @@
 // labels/legend (the "relief rule"), never rely on the color alone.
 export const CHART_COLORS = {
   light: {
-    blue: '#2a78d6',
+    blue: '#2563EB',
     green: '#008300',
     magenta: '#e87ba4',
     red: '#e34948',

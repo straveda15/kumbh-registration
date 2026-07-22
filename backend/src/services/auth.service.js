@@ -67,4 +67,43 @@ export const logout = async (adminId) => {
   await Admin.findByIdAndUpdate(adminId, { refreshTokenHash: null });
 };
 
-export default { login, refreshAccessToken, logout };
+export const updateProfile = async (adminId, { name, email }) => {
+  const normalizedEmail = email.trim().toLowerCase();
+
+  const conflict = await Admin.findOne({ email: normalizedEmail, _id: { $ne: adminId } });
+  if (conflict) {
+    throw ApiError.conflict('This email is already in use', [
+      { field: 'email', message: 'Email already in use' },
+    ]);
+  }
+
+  const admin = await Admin.findById(adminId);
+  if (!admin) {
+    throw ApiError.notFound('Admin not found');
+  }
+
+  admin.name = name;
+  admin.email = normalizedEmail;
+  await admin.save();
+
+  return admin.toSafeObject();
+};
+
+export const changePassword = async (adminId, { currentPassword, newPassword }) => {
+  const admin = await Admin.findById(adminId).select('+password');
+  if (!admin) {
+    throw ApiError.notFound('Admin not found');
+  }
+
+  const isMatch = await admin.comparePassword(currentPassword);
+  if (!isMatch) {
+    throw ApiError.badRequest('Current password is incorrect', [
+      { field: 'currentPassword', message: 'Incorrect password' },
+    ]);
+  }
+
+  admin.password = newPassword; // hashed by the model's pre-save hook
+  await admin.save();
+};
+
+export default { login, refreshAccessToken, logout, updateProfile, changePassword };

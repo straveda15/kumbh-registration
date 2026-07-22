@@ -22,8 +22,8 @@ export const PrivacyPage = () => (
         </p>
         <p>
           Uploaded documents are stored with our document hosting provider and linked only to your
-          registration. Your data is only reviewed by event administrators and gate operators for
-          the purpose of approving registrations and verifying passes at entry.
+          registration. Your data is only reviewed by event administrators for the purpose of
+          approving registrations.
         </p>
         <p>
           For any questions about your data, or to request its removal, contact support using the

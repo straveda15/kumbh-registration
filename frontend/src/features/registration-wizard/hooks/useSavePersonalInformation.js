@@ -8,7 +8,9 @@ export const useSavePersonalInformation = (code) => {
   return useMutation({
     mutationFn: savePersonalInformation,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [...DRAFT_QUERY_KEY, code] });
+      // See useSaveAccountCredentials for why the 'pilgrim-session'
+      // fallback is required here too.
+      queryClient.invalidateQueries({ queryKey: [...DRAFT_QUERY_KEY, code || 'pilgrim-session'] });
     },
   });
 };

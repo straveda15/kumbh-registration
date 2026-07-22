@@ -1,8 +1,8 @@
 import { HeartPulse } from 'lucide-react';
 import { SummaryCard, DataRow } from './SummaryCard';
 
-export const MedicalSummaryCard = ({ data = {}, detailed = false, className }) => (
-  <SummaryCard title="Medical Summary" icon={HeartPulse} className={className}>
+export const MedicalSummaryCard = ({ data = {}, detailed = false, className, action }) => (
+  <SummaryCard title="Medical Summary" icon={HeartPulse} className={className} action={action}>
     <DataRow label="Blood Group" value={data.bloodGroup} />
     <DataRow label="Allergies" value={data.allergies} />
     <DataRow label="Doctor" value={data.doctorName} />

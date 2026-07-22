@@ -25,7 +25,7 @@ function TableHeader({
   return (
     <thead
       data-slot="table-header"
-      className={cn("[&_tr]:border-b", className)}
+      className={cn("bg-[#EFF6FF] dark:bg-transparent [&_tr]:border-b", className)}
       {...props} />
   );
 }
@@ -37,7 +37,10 @@ function TableBody({
   return (
     <tbody
       data-slot="table-body"
-      className={cn("[&_tr:last-child]:border-0", className)}
+      className={cn(
+        "[&_tr:last-child]:border-0 [&_tr:nth-child(even)]:bg-[#FAFCFF] dark:[&_tr:nth-child(even)]:bg-transparent",
+        className
+      )}
       {...props} />
   );
 }

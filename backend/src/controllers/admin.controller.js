@@ -10,10 +10,15 @@ export const getAnalyticsOverview = asyncHandler(async (req, res) => {
 export const getAnalyticsTrend = asyncHandler(async (req, res) => {
   const days = req.query.days ? Number(req.query.days) : 30;
   const trend = await adminService.getAnalyticsTrend(days);
-  const genderDistribution = await adminService.getGenderDistribution();
-  return new ApiResponse(200, { ...trend, genderDistribution }, 'Trend data fetched successfully').send(
-    res
-  );
+  const [genderDistribution, districtDistribution] = await Promise.all([
+    adminService.getGenderDistribution(),
+    adminService.getDistrictDistribution(),
+  ]);
+  return new ApiResponse(
+    200,
+    { ...trend, genderDistribution, districtDistribution },
+    'Trend data fetched successfully'
+  ).send(res);
 });
 
 export const getRecentActivity = asyncHandler(async (req, res) => {

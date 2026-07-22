@@ -1,4 +1,7 @@
 import { z } from 'zod';
+import { INDIAN_STATES_AND_UTS } from '@/utils/indianStates';
+
+export const LANGUAGE_OPTIONS = ['Marathi', 'Hindi', 'English'];
 
 // Backs Step 1 (Personal Information). The backend stores this step's
 // answers as a flexible `data` object (see backend increment 1 design
@@ -16,7 +19,7 @@ import { z } from 'zod';
 export const personalInformationSchema = z
   .object({
     fullName: z.string().trim().min(2, 'Full name is required'),
-    gender: z.enum(['male', 'female', 'other']),
+    gender: z.enum(['male', 'female', 'other'], { message: 'Please select your gender.' }),
     dob: z.string().min(1, 'Date of birth is required'),
     mobile: z
       .string()
@@ -28,9 +31,19 @@ export const personalInformationSchema = z
     password: z.string().optional().default(''),
     confirmPassword: z.string().optional().default(''),
     nationality: z.string().trim().min(1, 'Nationality is required'),
-    language: z.string().trim().min(1, 'Preferred language is required'),
+    aadhaarNumber: z
+      .string()
+      .trim()
+      .regex(/^[0-9]{12}$/, 'Enter a valid 12-digit Aadhaar number'),
+    alternateMobile: z
+      .string()
+      .trim()
+      .regex(/^[0-9]{10}$/, 'Enter a valid 10-digit mobile number')
+      .optional()
+      .or(z.literal('')),
+    language: z.enum(LANGUAGE_OPTIONS, { message: 'Preferred language is required' }),
     address: z.string().trim().min(1, 'Address is required'),
-    state: z.string().trim().min(1, 'State is required'),
+    state: z.enum(INDIAN_STATES_AND_UTS, { message: 'State is required' }),
     district: z.string().trim().min(1, 'District is required'),
     taluka: z.string().trim().min(1, 'Taluka is required'),
     village: z.string().trim().min(1, 'Village/Town is required'),
@@ -62,6 +75,8 @@ export const personalInformationDefaults = {
   password: '',
   confirmPassword: '',
   nationality: 'Indian',
+  aadhaarNumber: '',
+  alternateMobile: '',
   language: '',
   address: '',
   state: '',

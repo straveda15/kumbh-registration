@@ -4,6 +4,7 @@ import { UserRound, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { PasswordInput } from '@/components/ui/password-input';
 import { Label } from '@/components/ui/label';
 import { AuthLayout } from '@/layouts/AuthLayout';
 import { usePilgrimLogin } from '@/features/pilgrimAuth/hooks/usePilgrimAuth';
@@ -14,20 +15,31 @@ import { usePilgrimLogin } from '@/features/pilgrimAuth/hooks/usePilgrimAuth';
 // store (usePilgrimAuthStore). See draftAuth.middleware.js for how this
 // token and the anonymous wizard draft token both resolve to the same
 // registration-access shape without either knowing about the other.
+//
+// Login itself is keyed on Registration Number, not the account email —
+// the backend resolves it to the owning User via Registration.userId (see
+// pilgrimAuth.service.js). That number only exists once a registration is
+// actually submitted, so this page can't be used to resume an in-progress
+// draft; the wizard's own draft-token session handles that separately.
 export const PilgrimLoginPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const loginMutation = usePilgrimLogin();
-  const [email, setEmail] = useState('');
+  // Prefilled when arriving with a Registration Number already in route
+  // state (e.g. copied from the Account Information page on another
+  // device) so the pilgrim doesn't have to retype it.
+  const [registrationNumber, setRegistrationNumber] = useState(
+    location.state?.registrationNumber || ''
+  );
   const [password, setPassword] = useState('');
 
   const handleSubmit = async (event) => {
     event.preventDefault();
     try {
-      await loginMutation.mutateAsync({ email, password });
+      await loginMutation.mutateAsync({ registrationNumber, password });
       navigate(location.state?.from?.pathname || '/dashboard', { replace: true });
     } catch (error) {
-      toast.error(error.message || 'Invalid email or password');
+      toast.error(error.message || 'Invalid registration number or password');
     }
   };
 
@@ -35,21 +47,21 @@ export const PilgrimLoginPage = () => {
     <AuthLayout icon={UserRound} title="Pilgrim Login" subtitle="Sign in to your account">
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         <div className="flex flex-col gap-1.5">
-          <Label htmlFor="email">Email Address</Label>
+          <Label htmlFor="registrationNumber">Registration Number</Label>
           <Input
-            id="email"
-            type="email"
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
+            id="registrationNumber"
+            type="text"
+            value={registrationNumber}
+            onChange={(event) => setRegistrationNumber(event.target.value)}
+            placeholder="KP2027MH000123"
             required
             autoComplete="username"
           />
         </div>
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="password">Password</Label>
-          <Input
+          <PasswordInput
             id="password"
-            type="password"
             value={password}
             onChange={(event) => setPassword(event.target.value)}
             required

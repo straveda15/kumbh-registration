@@ -27,6 +27,14 @@ export const saveAccountCredentials = asyncHandler(async (req, res) => {
   return new ApiResponse(200, { user }, 'Account credentials saved').send(res);
 });
 
+// Profile page's "Change Password" — separate from saveAccountCredentials
+// above (which only ever sets an initial password and never asks for the
+// current one).
+export const changeAccountPassword = asyncHandler(async (req, res) => {
+  await pilgrimAuthService.changePassword(req.draft.userId, req.body);
+  return new ApiResponse(200, {}, 'Password changed successfully').send(res);
+});
+
 export const savePersonalInformation = asyncHandler(async (req, res) => {
   const progress = await registrationService.savePersonalInformation(
     req.draft.registration,

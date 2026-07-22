@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { HeartPulse } from 'lucide-react';
@@ -14,6 +15,7 @@ import {
   medicalInformationDefaults,
   BLOOD_GROUPS,
 } from '@/validators/medicalInformation.schema';
+import { useWizardLiveDraftStore } from '@/store/useWizardLiveDraftStore';
 import { WIZARD_STEP_META } from '@/utils/wizardSteps';
 
 const PREVIOUS_STEP = WIZARD_STEP_META[1]; // Emergency Contact
@@ -21,12 +23,19 @@ const NEXT_STEP = WIZARD_STEP_META[3]; // Travel Information
 
 export const MedicalInformationStep = ({ code, initialData }) => {
   const saveMutation = useSaveWizardStep(code, saveMedicalInformation);
+  const setLiveSection = useWizardLiveDraftStore((state) => state.setLiveSection);
 
   const form = useForm({
     resolver: zodResolver(medicalInformationSchema),
     defaultValues: { ...medicalInformationDefaults, ...initialData },
     mode: 'onBlur',
   });
+
+  useEffect(() => {
+    const subscription = form.watch((values) => setLiveSection('medicalProfile', values));
+    return () => subscription.unsubscribe();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const persist = async () => {
     const isValid = await form.trigger();
@@ -60,7 +69,7 @@ export const MedicalInformationStep = ({ code, initialData }) => {
             form.setValue('bloodGroup', value, { shouldValidate: true, shouldDirty: true })
           }
         >
-          <SelectTrigger className="w-full">
+          <SelectTrigger className="h-14 w-full px-4">
             <SelectValue placeholder="Select blood group" />
           </SelectTrigger>
           <SelectContent>
@@ -74,39 +83,39 @@ export const MedicalInformationStep = ({ code, initialData }) => {
       </WizardField>
 
       <WizardField label="Doctor Name" error={form.formState.errors.doctorName?.message}>
-        <Input {...form.register('doctorName')} placeholder="Optional" />
+        <Input className="h-14 px-4" {...form.register('doctorName')} placeholder="Optional" />
       </WizardField>
 
       <WizardField
         label="Medical Conditions"
-        className="sm:col-span-2"
+        className="col-span-full"
         error={form.formState.errors.medicalConditions?.message}
       >
-        <Textarea {...form.register('medicalConditions')} placeholder="Optional" rows={2} />
+        <Textarea className="px-4 py-3" {...form.register('medicalConditions')} placeholder="Optional" rows={2} />
       </WizardField>
 
       <WizardField
         label="Current Medicines"
-        className="sm:col-span-2"
+        className="col-span-full"
         error={form.formState.errors.currentMedicines?.message}
       >
-        <Textarea {...form.register('currentMedicines')} placeholder="Optional" rows={2} />
+        <Textarea className="px-4 py-3" {...form.register('currentMedicines')} placeholder="Optional" rows={2} />
       </WizardField>
 
       <WizardField
-        label="Allergies"
-        className="sm:col-span-2"
+        label="Medical Allergies"
+        className="col-span-full"
         error={form.formState.errors.allergies?.message}
       >
-        <Textarea {...form.register('allergies')} placeholder="Optional" rows={2} />
+        <Textarea className="px-4 py-3" {...form.register('allergies')} placeholder="Optional" rows={2} />
       </WizardField>
 
       <WizardField
         label="Emergency Notes"
-        className="sm:col-span-2"
+        className="col-span-full"
         error={form.formState.errors.emergencyNotes?.message}
       >
-        <Textarea {...form.register('emergencyNotes')} placeholder="Optional" rows={2} />
+        <Textarea className="px-4 py-3" {...form.register('emergencyNotes')} placeholder="Optional" rows={2} />
       </WizardField>
     </WizardStepShell>
   );
