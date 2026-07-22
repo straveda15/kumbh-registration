@@ -1,8 +1,8 @@
 import { Route } from 'lucide-react';
 import { SummaryCard, DataRow } from './SummaryCard';
 
-export const TravelSummaryCard = ({ data = {}, detailed = false, className }) => (
-  <SummaryCard title="Travel Summary" icon={Route} className={className}>
+export const TravelSummaryCard = ({ data = {}, detailed = false, className, action }) => (
+  <SummaryCard title="Travel Summary" icon={Route} className={className} action={action}>
     <DataRow label="Arrival" value={data.arrivalDate} />
     <DataRow label="Departure" value={data.departureDate} />
     <DataRow label="Mode" value={data.mode} />

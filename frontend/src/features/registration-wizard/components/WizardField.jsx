@@ -5,9 +5,9 @@ import { cn } from '@/lib/utils';
 // local copy predating this — see WizardStepShell.jsx notes).
 export const WizardField = ({ label, error, children, className }) => (
   <div className={cn('flex flex-col gap-1.5', className)}>
-    <Label>{label}</Label>
+    <Label className="text-base font-semibold text-foreground">{label}</Label>
     {children}
-    {error && <p className="text-xs text-destructive">{error}</p>}
+    {error && <p className="text-xs text-[#FF7262] animate-in fade-in duration-200">{error}</p>}
   </div>
 );
 

@@ -17,7 +17,10 @@ import {
   suspendRegistrationSchema,
   listRegistrationsQuerySchema,
 } from '../validators/registration.validator.js';
-import { setAccountCredentialsSchema } from '../validators/pilgrimAuth.validator.js';
+import {
+  setAccountCredentialsSchema,
+  changePilgrimPasswordSchema,
+} from '../validators/pilgrimAuth.validator.js';
 
 const router = Router();
 
@@ -33,6 +36,12 @@ router.put(
   verifyDraftAccess,
   validate(setAccountCredentialsSchema),
   registrationController.saveAccountCredentials
+);
+router.put(
+  '/account/password',
+  verifyDraftAccess,
+  validate(changePilgrimPasswordSchema),
+  registrationController.changeAccountPassword
 );
 router.put(
   '/personal',

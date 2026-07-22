@@ -12,7 +12,13 @@ export const useSaveWizardStep = (code, saveFn) => {
   return useMutation({
     mutationFn: saveFn,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [...DRAFT_QUERY_KEY, code] });
+      // Must match useRegistrationSnapshot/useStartOrResumeDraft's own key
+      // exactly (code || 'pilgrim-session') — a pilgrim who logged in with
+      // Registration Number + Password on a fresh browser has no draft
+      // `code` at all, so invalidating the bare `code` (undefined/null)
+      // would silently miss the actual cached query (see
+      // useSaveAccountCredentials for the same fix).
+      queryClient.invalidateQueries({ queryKey: [...DRAFT_QUERY_KEY, code || 'pilgrim-session'] });
     },
   });
 };

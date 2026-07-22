@@ -14,6 +14,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { WizardField } from './WizardField';
 import { familyMemberSchema, familyMemberDefaults } from '@/validators/familyMember.schema';
+import { RELATIONSHIP_OPTIONS } from '@/utils/relationshipOptions';
 
 export const FamilyMemberFormDialog = ({ open, onOpenChange, initialData, onSubmit, isSaving }) => {
   const form = useForm({
@@ -44,13 +45,38 @@ export const FamilyMemberFormDialog = ({ open, onOpenChange, initialData, onSubm
         </DialogHeader>
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <WizardField label="Full Name" error={form.formState.errors.fullName?.message}>
-            <Input {...form.register('fullName')} placeholder="Full name" />
+            <Input className="h-14 px-4" {...form.register('fullName')} placeholder="Full name" />
           </WizardField>
           <WizardField label="Relationship" error={form.formState.errors.relationship?.message}>
-            <Input {...form.register('relationship')} placeholder="e.g. Spouse, Child, Parent" />
+            <Select
+              value={form.watch('relationship')}
+              onValueChange={(value) =>
+                form.setValue('relationship', value, { shouldValidate: true, shouldDirty: true })
+              }
+            >
+              <SelectTrigger className="h-14 w-full px-4">
+                <SelectValue placeholder="Select relationship" />
+              </SelectTrigger>
+              <SelectContent>
+                {RELATIONSHIP_OPTIONS.map((option) => (
+                  <SelectItem key={option} value={option}>
+                    {option}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </WizardField>
           <WizardField label="Age" error={form.formState.errors.age?.message}>
-            <Input type="number" min="0" max="120" {...form.register('age')} />
+            <Input className="h-14 px-4" type="number" min="0" max="120" {...form.register('age')} />
+          </WizardField>
+          <WizardField label="Aadhaar Card Number" error={form.formState.errors.aadhaarNumber?.message}>
+            <Input
+              className="h-14 px-4"
+              {...form.register('aadhaarNumber')}
+              inputMode="numeric"
+              maxLength={12}
+              placeholder="12-digit Aadhaar number"
+            />
           </WizardField>
           <WizardField label="Gender" error={form.formState.errors.gender?.message}>
             <Select
@@ -59,7 +85,7 @@ export const FamilyMemberFormDialog = ({ open, onOpenChange, initialData, onSubm
                 form.setValue('gender', value, { shouldValidate: true, shouldDirty: true })
               }
             >
-              <SelectTrigger className="w-full">
+              <SelectTrigger className="h-14 w-full px-4">
                 <SelectValue placeholder="Select gender" />
               </SelectTrigger>
               <SelectContent>
@@ -73,7 +99,7 @@ export const FamilyMemberFormDialog = ({ open, onOpenChange, initialData, onSubm
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="submit" disabled={isSaving}>
+            <Button type="submit" disabled={isSaving} className="hover:bg-[var(--w-accent-hover)]">
               {initialData ? 'Save Changes' : 'Add Member'}
             </Button>
           </DialogFooter>

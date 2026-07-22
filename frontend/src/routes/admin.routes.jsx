@@ -12,9 +12,6 @@ import { AdminEventCreatePage } from '@/pages/admin/AdminEventCreatePage';
 import { AdminEventEditPage } from '@/pages/admin/AdminEventEditPage';
 import { AdminEventDetailPage } from '@/pages/admin/AdminEventDetailPage';
 import { AdminQrCodesPage } from '@/pages/admin/AdminQrCodesPage';
-import { AdminOperatorsPage } from '@/pages/admin/AdminOperatorsPage';
-import { AdminNotificationsPage } from '@/pages/admin/AdminNotificationsPage';
-import { AdminSettingsPage } from '@/pages/admin/AdminSettingsPage';
 import { AdminProfilePage } from '@/pages/admin/AdminProfilePage';
 
 // Every Admin route (other than /admin/login itself) is gated by
@@ -72,11 +69,6 @@ export const adminRoutes = [
     path="/admin/qr-codes"
     element={<AnimatedPage>{adminPage(AdminQrCodesPage)}</AnimatedPage>}
   />,
-  <Route
-    key="admin-operators"
-    path="/admin/operators"
-    element={<AnimatedPage>{adminPage(AdminOperatorsPage)}</AnimatedPage>}
-  />,
   // Analytics reuses the Dashboard component — every analytics widget that
   // exists today (stat cards, trend charts, recent activity) already lives
   // there; there's no separate analytics-only view to duplicate it into.
@@ -84,16 +76,6 @@ export const adminRoutes = [
     key="admin-analytics"
     path="/admin/analytics"
     element={<AnimatedPage>{adminPage(AdminDashboardPage)}</AnimatedPage>}
-  />,
-  <Route
-    key="admin-notifications"
-    path="/admin/notifications"
-    element={<AnimatedPage>{adminPage(AdminNotificationsPage)}</AnimatedPage>}
-  />,
-  <Route
-    key="admin-settings"
-    path="/admin/settings"
-    element={<AnimatedPage>{adminPage(AdminSettingsPage)}</AnimatedPage>}
   />,
   <Route
     key="admin-profile"

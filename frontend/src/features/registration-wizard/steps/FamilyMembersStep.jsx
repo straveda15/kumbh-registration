@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Users, Plus, ArrowRight } from 'lucide-react';
+import { Users, Plus, ArrowLeft, ArrowRight } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -75,28 +75,32 @@ export const FamilyMembersStep = ({ code, familyMembers = [] }) => {
 
   return (
     <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
-      <Card className="glass-card border-none">
-        <CardHeader>
+      <Card className="glass-card rounded-2xl border-none [--card-spacing:--spacing(4)] sm:rounded-[24px] sm:[--card-spacing:--spacing(6)] lg:[--card-spacing:--spacing(10)]">
+        <CardHeader className="gap-2 sm:gap-3">
+          <p className="text-xs font-semibold tracking-wider text-primary uppercase">Step</p>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-3">
-              <span className="flex size-9 items-center justify-center rounded-full bg-primary/15 text-primary">
-                <Users className="size-4.5" />
+              <span className="flex size-10 shrink-0 items-center justify-center rounded-2xl bg-primary/15 text-primary sm:size-11">
+                <Users className="size-5" />
               </span>
               <div>
-                <CardTitle>Family Members</CardTitle>
-                <CardDescription>
-                  Step 6 of 7 — Add anyone travelling with you (optional)
+                <CardTitle className="text-xl font-bold text-foreground sm:text-2xl">Family Members</CardTitle>
+                <CardDescription className="text-sm text-muted-foreground">
+                  Add anyone travelling with you (optional).
                 </CardDescription>
               </div>
             </div>
-            <Button onClick={openAddDialog} size="sm" className="gap-1.5">
+            <Button
+              onClick={openAddDialog}
+              className="h-11 w-full gap-1.5 rounded-2xl px-4 hover:bg-[var(--w-accent-hover)] sm:w-auto"
+            >
               <Plus className="size-4" /> Add Member
             </Button>
           </div>
         </CardHeader>
         <CardContent>
           {familyMembers.length === 0 ? (
-            <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-white/10 py-10 text-center">
+            <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-border py-10 text-center">
               <p className="text-sm text-muted-foreground">
                 No family members added yet. This step is optional.
               </p>
@@ -118,19 +122,26 @@ export const FamilyMembersStep = ({ code, familyMembers = [] }) => {
         </CardContent>
       </Card>
 
-      <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <Button
-            variant="outline"
-            onClick={() => setActiveStep(PREVIOUS_STEP.key)}
-            className="gap-1.5"
-          >
-            {PREVIOUS_STEP.label}
-          </Button>
+      <div className="mt-3 text-center sm:hidden">
+        <AutosaveIndicator status={isMutatingFamily ? 'pending' : 'idle'} />
+      </div>
+
+      <div className="sticky bottom-0 z-10 -mx-4 mt-4 flex items-center justify-between gap-3 border-t border-border bg-background/95 px-4 py-3 backdrop-blur sm:static sm:mx-0 sm:mt-6 sm:border-0 sm:bg-transparent sm:px-0 sm:py-0 sm:backdrop-blur-none">
+        <Button
+          variant="ghost"
+          onClick={() => setActiveStep(PREVIOUS_STEP.key)}
+          className="h-11 gap-1.5 rounded-2xl px-3 text-muted-foreground sm:px-4"
+        >
+          <ArrowLeft className="size-4" /> Back
+        </Button>
+        <div className="hidden sm:block">
           <AutosaveIndicator status={isMutatingFamily ? 'pending' : 'idle'} />
         </div>
-        <Button onClick={() => setActiveStep(REVIEW_STEP.key)} className="gap-1.5">
-          Next: {REVIEW_STEP.label} <ArrowRight className="size-4" />
+        <Button
+          onClick={() => setActiveStep(REVIEW_STEP.key)}
+          className="h-12 flex-1 gap-1.5 rounded-2xl px-6 text-base font-semibold shadow-lg shadow-primary/20 transition-all duration-150 hover:-translate-y-0.5 hover:scale-[1.02] hover:bg-[var(--w-accent-hover)] sm:h-[52px] sm:flex-none"
+        >
+          Save & Continue <ArrowRight className="size-4" />
         </Button>
       </div>
 

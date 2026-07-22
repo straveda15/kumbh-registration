@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ClipboardCheck, Loader2, Send, UserRound } from 'lucide-react';
+import { ArrowLeft, ClipboardCheck, Loader2, Send, UserRound } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -34,8 +34,14 @@ export const ReviewStep = ({ code, draft, canSubmit }) => {
   const handleSubmitRegistration = async () => {
     try {
       const result = await submitMutation.mutateAsync();
-      navigate('/register/success', {
-        state: { registrationNumber: result.registrationNumber, pilgrimId: result.pilgrimId },
+      // The wizard's own draft token still grants dashboard access post-
+      // submit (see useHasCitizenSession) — no separate login step needed
+      // before landing there. The freshly generated Registration Number is
+      // handed forward via route state so the dashboard can show it once in
+      // a success banner; after that it's still visible any time on the
+      // Dashboard and Profile pages (see RegistrationNumberCard).
+      navigate('/dashboard', {
+        state: { justRegistered: true, registrationNumber: result.registrationNumber },
       });
     } catch (error) {
       // The backend only rejects submit for a missing account password
@@ -53,19 +59,22 @@ export const ReviewStep = ({ code, draft, canSubmit }) => {
 
   return (
     <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
-      <Card className="glass-card border-none">
-        <CardHeader>
+      <Card className="glass-card rounded-2xl border-none [--card-spacing:--spacing(4)] sm:rounded-[24px] sm:[--card-spacing:--spacing(6)] lg:[--card-spacing:--spacing(10)]">
+        <CardHeader className="gap-2 sm:gap-3">
+          <p className="text-xs font-semibold tracking-wider text-primary uppercase">Step</p>
           <div className="flex items-center gap-3">
-            <span className="flex size-9 items-center justify-center rounded-full bg-primary/15 text-primary">
-              <ClipboardCheck className="size-4.5" />
+            <span className="flex size-10 shrink-0 items-center justify-center rounded-2xl bg-primary/15 text-primary sm:size-11">
+              <ClipboardCheck className="size-5" />
             </span>
             <div>
-              <CardTitle>Review &amp; Submit</CardTitle>
-              <CardDescription>Step 7 of 7 — Check everything before you submit</CardDescription>
+              <CardTitle className="text-xl font-bold text-foreground sm:text-2xl">Review &amp; Submit</CardTitle>
+              <CardDescription className="text-sm text-muted-foreground">
+                Check everything before you submit.
+              </CardDescription>
             </div>
           </div>
         </CardHeader>
-        <CardContent className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+        <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5">
           <ProfileSummaryCard data={draft?.personalInformation?.data} detailed />
           <EmergencyContactSummaryCard data={draft?.emergencyContact?.data} />
           <MedicalSummaryCard data={draft?.medicalProfile?.data} detailed />
@@ -85,25 +94,37 @@ export const ReviewStep = ({ code, draft, canSubmit }) => {
         </CardContent>
       </Card>
 
-      <Card className="glass-card mt-5 border-none">
+      <Card className="glass-card mt-4 rounded-2xl border-none [--card-spacing:--spacing(4)] sm:mt-5 sm:rounded-[24px] sm:[--card-spacing:--spacing(6)] lg:[--card-spacing:--spacing(10)]">
         <CardHeader>
-          <CardTitle>Documents</CardTitle>
-          <CardDescription>Upload your profile photo and government ID before submitting.</CardDescription>
+          <CardTitle className="text-lg font-bold text-foreground">Documents</CardTitle>
+          <CardDescription>
+            Upload your government ID before submitting. Your profile photo is uploaded from the
+            Personal Information step.
+          </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4 md:grid-cols-2">
-          <DocumentUploadCard type="profilePhoto" />
           <DocumentUploadCard type="governmentId" />
         </CardContent>
       </Card>
 
-      <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
-        <Button variant="outline" onClick={() => setActiveStep(PREVIOUS_STEP.key)} className="gap-1.5">
-          {PREVIOUS_STEP.label}
+      {!canSubmit && (
+        <p className="mt-3 text-center text-xs text-muted-foreground sm:text-right">
+          Complete all required steps before submitting.
+        </p>
+      )}
+
+      <div className="sticky bottom-0 z-10 -mx-4 mt-4 flex items-center justify-between gap-3 border-t border-border bg-background/95 px-4 py-3 backdrop-blur sm:static sm:mx-0 sm:mt-6 sm:border-0 sm:bg-transparent sm:px-0 sm:py-0 sm:backdrop-blur-none">
+        <Button
+          variant="ghost"
+          onClick={() => setActiveStep(PREVIOUS_STEP.key)}
+          className="h-11 gap-1.5 rounded-2xl px-3 text-muted-foreground sm:px-4"
+        >
+          <ArrowLeft className="size-4" /> Back
         </Button>
         <Button
           onClick={handleSubmitRegistration}
           disabled={!canSubmit || submitMutation.isPending}
-          className="gap-1.5"
+          className="h-12 flex-1 gap-1.5 rounded-2xl px-6 text-base font-semibold shadow-lg shadow-primary/20 transition-all duration-150 hover:-translate-y-0.5 hover:scale-[1.02] hover:bg-[var(--w-accent-hover)] sm:h-[52px] sm:flex-none"
         >
           {submitMutation.isPending ? (
             <Loader2 className="size-4 animate-spin" />
@@ -113,12 +134,6 @@ export const ReviewStep = ({ code, draft, canSubmit }) => {
           Submit Registration
         </Button>
       </div>
-
-      {!canSubmit && (
-        <p className="mt-2 text-right text-xs text-muted-foreground">
-          Complete all required steps before submitting.
-        </p>
-      )}
     </motion.div>
   );
 };

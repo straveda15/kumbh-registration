@@ -17,6 +17,9 @@ export const getDraft = () => axiosClient.get('/registration/draft');
 export const saveAccountCredentials = (payload) =>
   axiosClient.put('/registration/account', payload).then((res) => res.user);
 
+export const changeAccountPassword = (payload) =>
+  axiosClient.put('/registration/account/password', payload);
+
 export const savePersonalInformation = (payload) =>
   axiosClient.put('/registration/personal', payload);
 
@@ -53,8 +56,10 @@ export const deleteFamilyMember = (id) =>
 export const submitRegistration = () => axiosClient.post('/registration/submit');
 
 // Same named-key wrapping as listFamilyMembers above (`{ activity }`, see
-// registration.controller.js's getActivity) — unwrap so ActivityTimelineCard
-// always receives Activity[], never `{ activity: [...] }`.
+// registration.controller.js's getActivity) — unwrap so callers always
+// receive Activity[], never `{ activity: [...] }`. Currently unused by any
+// UI (no frontend page surfaces a citizen's own activity log), but the
+// backend endpoint still works — left in place rather than removed.
 export const getActivity = () => axiosClient.get('/registration/activity').then((res) => res.activity);
 
 export default {
@@ -62,6 +67,7 @@ export default {
   getDraft,
   getActivity,
   saveAccountCredentials,
+  changeAccountPassword,
   savePersonalInformation,
   saveEmergencyContact,
   saveMedicalInformation,

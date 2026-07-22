@@ -14,13 +14,22 @@ import { ReviewStep } from '@/features/registration-wizard/steps/ReviewStep';
 import { useStartOrResumeDraft } from '@/features/registration-wizard/hooks/useStartOrResumeDraft';
 import { useWizardUiStore } from '@/store/useWizardUiStore';
 import { areRequiredStepsComplete } from '@/utils/wizardSteps';
+import { setRegistrationReturnPath } from '@/utils/registrationReturnPath';
+
+// Mirrors the backend's EDITABLE_STATUSES (registration.service.js) — a
+// submitted registration also reopens for editing when an admin requests
+// more info, not just while still a draft.
+const EDITABLE_STATUSES = ['draft', 'info_requested'];
 
 const WizardSkeleton = () => (
-  <div className="mx-auto flex min-h-screen w-full max-w-6xl flex-col gap-6 px-4 py-8 md:flex-row md:gap-8 md:px-8">
-    <Skeleton className="h-96 w-full shrink-0 rounded-2xl md:w-72" />
-    <div className="flex flex-1 flex-col gap-6">
-      <Skeleton className="h-16 w-full rounded-2xl" />
-      <Skeleton className="h-96 w-full rounded-2xl" />
+  <div className="wizard-theme wizard-bg min-h-screen w-full">
+    <div className="mx-auto flex w-full max-w-7xl flex-col gap-5 px-4 py-6 md:px-8 md:py-8">
+      <Skeleton className="h-14 w-full rounded-2xl" />
+      <Skeleton className="h-24 w-full rounded-2xl" />
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_360px]">
+        <Skeleton className="h-96 w-full rounded-2xl" />
+        <Skeleton className="h-96 w-full rounded-2xl" />
+      </div>
     </div>
   </div>
 );
@@ -33,12 +42,21 @@ export const WizardPage = () => {
   const activeStep = useWizardUiStore((state) => state.activeStep);
   const setActiveStep = useWizardUiStore((state) => state.setActiveStep);
 
+  // Remembers this registration page for the tab's lifetime so a later
+  // logout (PublicLayout's handleLogout) can send this citizen back here
+  // instead of the landing page — recorded on arrival, before the token is
+  // even validated, since the requirement is "never land on / after
+  // logout" regardless of whether this particular code turns out valid.
+  useEffect(() => {
+    setRegistrationReturnPath(code);
+  }, [code]);
+
   // Defense in depth: a submitted registration's mutation routes are
   // already rejected server-side (assertDraftEditable), but a citizen
   // shouldn't even see the wizard form after submitting — send them to
   // their dashboard instead.
   useEffect(() => {
-    if (draft?.registrationStatus && draft.registrationStatus !== 'draft') {
+    if (draft?.registrationStatus && !EDITABLE_STATUSES.includes(draft.registrationStatus)) {
       navigate('/dashboard', { replace: true });
     }
   }, [draft?.registrationStatus, navigate]);
@@ -58,7 +76,7 @@ export const WizardPage = () => {
 
   if (isError) {
     return (
-      <div className="mx-auto flex min-h-screen w-full max-w-6xl items-center justify-center px-4">
+      <div className="wizard-theme wizard-bg flex min-h-screen w-full items-center justify-center px-4">
         <div className="glass-panel flex max-w-md flex-col items-center gap-3 rounded-2xl px-8 py-10 text-center">
           <TriangleAlert className="size-8 text-destructive" />
           <p className="text-base font-medium text-foreground">We couldn't start your registration</p>
@@ -73,7 +91,7 @@ export const WizardPage = () => {
     );
   }
 
-  if (draft?.registrationStatus && draft.registrationStatus !== 'draft') {
+  if (draft?.registrationStatus && !EDITABLE_STATUSES.includes(draft.registrationStatus)) {
     return null;
   }
 

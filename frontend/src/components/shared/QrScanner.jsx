@@ -7,12 +7,10 @@ import { Label } from '@/components/ui/label';
 
 const SCANNER_ELEMENT_ID = 'shared-qr-scanner';
 
-// Role-agnostic camera + manual-entry QR scanner — used by the Operator's
-// pass-verification page and the Public scan-to-register page. Camera scan
-// and manual entry both feed the same `onDetected(code)`; the caller
-// decides what a detected code means (verify a pass vs. start a
-// registration). Text is prop-driven so neither caller needs role-specific
-// wording hardcoded into a shared component.
+// Camera + manual-entry QR scanner used by the public scan-to-register
+// page. Camera scan and manual entry both feed the same `onDetected(code)`.
+// Text is prop-driven so the caller doesn't need wording hardcoded into
+// this shared component.
 export const QrScanner = ({
   onDetected,
   disabled,

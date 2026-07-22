@@ -1,8 +1,9 @@
 import { useRef, useState } from 'react';
-import { Upload, Eye, Download, Trash2, FileText, RotateCcw } from 'lucide-react';
+import { Upload, Eye, Download, Trash2, FileText, RotateCcw, Camera, ImagePlus } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { ImageCropDialog } from './ImageCropDialog';
 import { DocumentPreviewDialog } from './DocumentPreviewDialog';
@@ -13,12 +14,13 @@ import { validateDocumentFile, DOCUMENT_TYPE_META } from '@/validators/document.
 
 const formatSize = (bytes) => `${Math.max(1, Math.round(bytes / 1024))} KB`;
 
-export const DocumentUploadCard = ({ type }) => {
+export const DocumentUploadCard = ({ type, variant = 'default' }) => {
   const meta = DOCUMENT_TYPE_META[type];
   const { data: allDocuments } = useDocuments();
   const uploadMutation = useUploadDocument();
   const deleteMutation = useDeleteDocument();
   const inputRef = useRef(null);
+  const cameraInputRef = useRef(null);
 
   const [progress, setProgress] = useState(0);
   const [pendingFile, setPendingFile] = useState(null);
@@ -86,14 +88,121 @@ export const DocumentUploadCard = ({ type }) => {
 
   const isUploading = uploadMutation.isPending;
 
+  // Compact single-row layout for placement inside the Personal Information
+  // step (camera icon + label + Upload button) — same upload/crop/validate
+  // logic and hooks as the default card, just a denser presentation for a
+  // spot that isn't dedicated to document management the way the Document
+  // Center / Review step cards are.
+  if (variant === 'compact') {
+    const existingDoc = documents[0];
+
+    return (
+      <div className="glass-card flex w-full flex-col gap-1.5 rounded-xl border border-border px-3 py-2">
+        <div className="flex items-center gap-2.5">
+          <span className="flex size-12 shrink-0 items-center justify-center self-center overflow-hidden rounded-lg bg-primary/15 text-primary sm:size-14">
+            {existingDoc?.mimeType?.startsWith('image/') ? (
+              <img src={existingDoc.url} alt={meta.label} className="size-full object-cover" />
+            ) : (
+              <Camera className="size-5" />
+            )}
+          </span>
+          <div className="flex min-w-0 flex-1 flex-col justify-center gap-0.5">
+            <p className="text-base leading-tight font-semibold text-foreground">Photo</p>
+            <p className="text-[13px] leading-tight text-muted-foreground">PNG/JPG • Max 2 MB</p>
+            {isUploading && (
+              <div className="mt-1 flex items-center gap-2">
+                <Progress value={progress} className="h-1" />
+                <span className="text-xs text-muted-foreground">{progress}%</span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Two dedicated inputs — one forces the device camera straight
+            open (capture="environment"), the other opens the normal
+            gallery/file picker — rather than one input relying on the
+            browser's own camera-or-library chooser sheet, so "Take Photo"
+            and "Upload Photo" are two real, distinct, always-visible
+            buttons as requested instead of one generic "Upload". */}
+        <input
+          ref={cameraInputRef}
+          type="file"
+          accept={meta.accept}
+          capture="environment"
+          className="hidden"
+          onChange={handleFileSelected}
+        />
+        <input ref={inputRef} type="file" accept={meta.accept} className="hidden" onChange={handleFileSelected} />
+
+        {uploadMutation.isError && !isUploading ? (
+          <Button variant="outline" onClick={handleRetry} className="h-9 gap-1.5 rounded-lg text-xs sm:h-10 sm:text-sm">
+            <RotateCcw className="size-3.5" /> Retry
+          </Button>
+        ) : (
+          !isUploading && (
+            // A true 2-column grid — not flex-1 — so both actions land at
+            // exactly the same width regardless of label length ("Retake"
+            // vs "Change"/"Upload"), instead of each sizing to its own text.
+            <div className="grid grid-cols-2 gap-2">
+              {/* A single-instance document type (profilePhoto) is never
+                  "locked" once uploaded — re-picking a file here replaces
+                  it (the backend deletes the old asset on re-upload, see
+                  document.service.js's registerDocument), and Remove
+                  clears it entirely. */}
+              <Button
+                variant="outline"
+                onClick={() => cameraInputRef.current?.click()}
+                className="h-9 w-full justify-center gap-1 rounded-lg text-xs sm:h-10 sm:text-sm"
+              >
+                <Camera className="size-3.5" /> {existingDoc ? 'Retake' : 'Take Photo'}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => inputRef.current?.click()}
+                className="h-9 w-full justify-center gap-1 rounded-lg text-xs sm:h-10 sm:text-sm"
+              >
+                <ImagePlus className="size-3.5" /> {existingDoc ? 'Change' : 'Upload'}
+              </Button>
+            </div>
+          )
+        )}
+
+        {existingDoc && !isUploading && (
+          <button
+            type="button"
+            onClick={() => handleDelete(existingDoc._id)}
+            disabled={deleteMutation.isPending}
+            className="flex w-fit items-center gap-1 self-start text-[13px] font-medium text-destructive/80 hover:text-destructive hover:underline disabled:opacity-50"
+          >
+            <Trash2 className="size-3" /> Remove Photo
+          </button>
+        )}
+
+        <ImageCropDialog open={cropOpen} onOpenChange={setCropOpen} imageSrc={cropSrc} onCropped={handleCropped} />
+        <DocumentPreviewDialog
+          open={Boolean(previewDoc)}
+          onOpenChange={(open) => !open && setPreviewDoc(null)}
+          document={previewDoc}
+        />
+      </div>
+    );
+  }
+
   return (
     <Card className="glass-card border-none">
-      <CardHeader>
+      <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0">
         <CardTitle className="text-sm">{meta.label}</CardTitle>
+        {/* Reflects real upload state only — there's no per-document review
+            workflow in the data model (only the registration as a whole is
+            approved/rejected), so this never claims a "Pending"/"Rejected"
+            status that doesn't exist. */}
+        <Badge variant={documents.length > 0 ? 'default' : 'outline'} className="shrink-0">
+          {documents.length > 0 ? 'Uploaded' : 'Not Uploaded'}
+        </Badge>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
         {documents.map((doc) => (
-          <div key={doc._id} className="flex items-center gap-3 rounded-xl bg-white/5 p-3">
+          <div key={doc._id} className="flex items-center gap-3 rounded-xl bg-muted p-3">
             {doc.mimeType?.startsWith('image/') ? (
               <img
                 src={doc.url}

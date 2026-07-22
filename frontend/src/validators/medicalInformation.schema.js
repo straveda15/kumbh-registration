@@ -1,9 +1,9 @@
 import { z } from 'zod';
 
-export const BLOOD_GROUPS = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
+export const BLOOD_GROUPS = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-', "Don't Know"];
 
 export const medicalInformationSchema = z.object({
-  bloodGroup: z.enum(BLOOD_GROUPS),
+  bloodGroup: z.enum(BLOOD_GROUPS, { message: 'Please select your blood group.' }),
   medicalConditions: z.string().trim().optional(),
   currentMedicines: z.string().trim().optional(),
   allergies: z.string().trim().optional(),

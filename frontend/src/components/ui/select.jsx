@@ -56,7 +56,12 @@ function SelectTrigger({
 function SelectContent({
   className,
   children,
-  position = "item-aligned",
+  // "item-aligned" (Radix's default) scrolls via hold-to-scroll
+  // up/down buttons instead of native touch/wheel scrolling, which is what
+  // actually caused the reported dropdown lag/poor scroll feel — "popper"
+  // behaves like every other dropdown in the app (Popover/DropdownMenu),
+  // with plain native overflow scrolling and smooth keyboard navigation.
+  position = "popper",
   align = "center",
   ...props
 }) {
@@ -77,8 +82,15 @@ function SelectContent({
         <SelectPrimitive.Viewport
           data-position={position}
           className={cn(
-            "data-[position=popper]:h-(--radix-select-trigger-height) data-[position=popper]:w-full data-[position=popper]:min-w-(--radix-select-trigger-width)",
-            position === "popper" && ""
+            "p-1",
+            // Width-only in popper mode — matching the trigger's width is
+            // the whole point, but height must stay auto so the Content's
+            // own max-h-(--radix-select-content-available-height) above is
+            // what actually governs the scrollable area. Constraining the
+            // viewport to the trigger's own (tiny) height here was a latent
+            // bug that would've made every list look like it only had one
+            // visible item, had "popper" ever been used before now.
+            "data-[position=popper]:w-full data-[position=popper]:min-w-(--radix-select-trigger-width)"
           )}>
           {children}
         </SelectPrimitive.Viewport>

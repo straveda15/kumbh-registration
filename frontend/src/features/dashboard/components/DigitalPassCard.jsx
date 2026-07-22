@@ -31,6 +31,13 @@ export const DigitalPassCard = forwardRef(
       accommodation = {},
       registrationStatus,
       registrationNumber,
+      // The pilgrim-facing pass (DigitalPassPage) hides this — Registration
+      // Number is meant to stay an internal login identifier, not something
+      // prominently shown on the pass itself. Admin's copy of this same
+      // card (AdminRegistrationDetailPage) still passes it and needs it,
+      // so this defaults to showing it rather than flipping the meaning at
+      // every other call site.
+      hideRegistrationNumber = false,
       eventName,
       profilePhotoUrl,
     },
@@ -101,10 +108,12 @@ export const DigitalPassCard = forwardRef(
           )}
 
           <div className="flex w-full flex-col gap-2 text-sm">
-            <div className="flex items-center justify-between gap-3 rounded-xl bg-white/5 px-4 py-2.5">
-              <span className="text-muted-foreground">Registration No.</span>
-              <span className="font-mono font-medium text-foreground">{registrationNumber || '—'}</span>
-            </div>
+            {!hideRegistrationNumber && (
+              <div className="flex items-center justify-between gap-3 rounded-xl bg-white/5 px-4 py-2.5">
+                <span className="text-muted-foreground">Registration No.</span>
+                <span className="font-mono font-medium text-foreground">{registrationNumber || '—'}</span>
+              </div>
+            )}
             <div className="flex items-center justify-between gap-3 rounded-xl bg-white/5 px-4 py-2.5">
               <span className="text-muted-foreground">Event</span>
               <span className="font-medium text-foreground">{eventName || '—'}</span>

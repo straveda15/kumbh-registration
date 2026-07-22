@@ -53,15 +53,16 @@ export const WizardStepShell = ({
 
   return (
     <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
-      <Card className="glass-card border-none">
-        <CardHeader>
+      <Card className="glass-card rounded-2xl border-none [--card-spacing:--spacing(4)] sm:rounded-[24px] sm:[--card-spacing:--spacing(6)] lg:[--card-spacing:--spacing(10)]">
+        <CardHeader className="gap-2 sm:gap-3">
+          <p className="text-xs font-semibold tracking-wider text-primary uppercase">Step</p>
           <div className="flex items-center gap-3">
-            <span className="flex size-9 items-center justify-center rounded-full bg-primary/15 text-primary">
-              <Icon className="size-4.5" />
+            <span className="flex size-10 shrink-0 items-center justify-center rounded-2xl bg-primary/15 text-primary sm:size-11">
+              <Icon className="size-5" />
             </span>
             <div>
-              <CardTitle>{title}</CardTitle>
-              <CardDescription>{description}</CardDescription>
+              <CardTitle className="text-xl font-bold text-foreground sm:text-2xl">{title}</CardTitle>
+              <CardDescription className="text-sm text-muted-foreground">{description}</CardDescription>
             </div>
           </div>
         </CardHeader>
@@ -69,24 +70,40 @@ export const WizardStepShell = ({
           <form
             onBlur={onPersist}
             onSubmit={(event) => event.preventDefault()}
-            className="grid grid-cols-1 gap-5 sm:grid-cols-2"
+            className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3"
           >
             {children}
           </form>
         </CardContent>
       </Card>
 
-      <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
+      <div className="mt-3 text-center sm:hidden">
+        <AutosaveIndicator status={saveStatus} />
+      </div>
+
+      {/* Sticky action bar — Continue is always one thumb-reach away
+          without hunting for it at the bottom of a long form. */}
+      <div className="sticky bottom-0 z-10 -mx-4 mt-4 flex items-center justify-between gap-3 border-t border-border bg-background/95 px-4 py-3 backdrop-blur sm:static sm:mx-0 sm:mt-6 sm:border-0 sm:bg-transparent sm:px-0 sm:py-0 sm:backdrop-blur-none">
+        <div>
           {previousStep && (
-            <Button variant="outline" onClick={handlePrevious} className="gap-1.5">
-              <ArrowLeft className="size-4" /> {previousStep.label}
+            <Button
+              variant="ghost"
+              onClick={handlePrevious}
+              className="h-11 gap-1.5 rounded-2xl px-3 text-muted-foreground sm:px-4"
+            >
+              <ArrowLeft className="size-4" /> Back
             </Button>
           )}
+        </div>
+        <div className="hidden sm:block">
           <AutosaveIndicator status={saveStatus} />
         </div>
-        <Button onClick={handleNext} disabled={isSaving} className="gap-1.5">
-          {nextLabel || (nextStep ? `Next: ${nextStep.label}` : 'Continue')}
+        <Button
+          onClick={handleNext}
+          disabled={isSaving}
+          className="h-12 flex-1 gap-1.5 rounded-2xl px-6 text-base font-semibold shadow-lg shadow-primary/20 transition-all duration-150 hover:-translate-y-0.5 hover:scale-[1.02] hover:bg-[var(--w-accent-hover)] sm:h-[52px] sm:flex-none"
+        >
+          {nextLabel || (nextStep ? `Save & Continue` : 'Continue')}
           <ArrowRight className="size-4" />
         </Button>
       </div>

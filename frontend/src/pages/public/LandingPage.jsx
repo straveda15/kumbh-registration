@@ -2,19 +2,8 @@ import { useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
-import {
-  QrCode,
-  ScanLine,
-  UserRound,
-  ShieldCheck,
-  Smartphone,
-  CheckCircle2,
-  IdCard,
-  Mail,
-  Phone,
-} from 'lucide-react';
+import { QrCode, ShieldCheck, CheckCircle2, IdCard, Mail, Phone } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { SummaryCard } from '@/features/dashboard/components/SummaryCard';
 import { useDraftSessionStore } from '@/store/useDraftSessionStore';
 import { useHasCitizenSession } from '@/hooks/useHasCitizenSession';
@@ -22,29 +11,12 @@ import { getDraft } from '@/api/registration.api';
 import { DRAFT_QUERY_KEY } from '@/features/registration-wizard/hooks/useStartOrResumeDraft';
 import { FAQ_ITEMS } from '@/utils/faqItems';
 
-// The three cards below are literally the three independent apps (Public/
-// Admin/Operator) the routing refactor separated — the landing page is the
-// one place all three are allowed to appear side by side, since it only
-// links *into* each section rather than exposing any of their functionality.
-const PortalCard = ({ icon: Icon, title, description, children }) => (
-  <Card className="glass-card flex flex-col border-none transition-shadow hover:shadow-lg hover:shadow-primary/5">
-    <CardHeader>
-      <span className="flex size-11 items-center justify-center rounded-full bg-primary/15 text-primary">
-        <Icon className="size-5" aria-hidden="true" />
-      </span>
-      <CardTitle className="mt-3">{title}</CardTitle>
-      <CardDescription>{description}</CardDescription>
-    </CardHeader>
-    <CardContent className="mt-auto flex flex-wrap gap-2">{children}</CardContent>
-  </Card>
-);
-
 const HOW_IT_WORKS_STEPS = [
   { step: 1, title: 'Scan QR', description: 'Scan the event QR code at the entrance, or from the home page.' },
   { step: 2, title: 'Complete Registration', description: 'Fill in your personal, medical, travel, and accommodation details.' },
   { step: 3, title: 'Approval', description: 'An event administrator reviews and approves your registration.' },
   { step: 4, title: 'Download Digital Pass', description: 'Your digital pass is generated automatically once approved.' },
-  { step: 5, title: 'Verification at Event', description: 'Gate operators scan your pass to verify entry.' },
+  { step: 5, title: 'Verification at Event', description: 'Your digital pass is verified at entry.' },
 ];
 
 export const LandingPage = () => {
@@ -77,58 +49,19 @@ export const LandingPage = () => {
           Kumbh Registration Portal
         </h1>
         <p className="max-w-md text-sm text-muted-foreground sm:text-base">
-          Welcome to the official Kumbh Registration Platform.
+          Register for the event, continue your registration, track your application, and access your
+          digital pass.
         </p>
-      </motion.div>
-
-      {/* Three Portal Cards */}
-      <motion.div
-        initial={{ opacity: 0, y: 16 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4, delay: 0.1 }}
-        className="grid w-full grid-cols-1 gap-5 text-left sm:grid-cols-2 lg:grid-cols-3"
-      >
-        <PortalCard
-          icon={UserRound}
-          title="Pilgrim"
-          description="Register for the event, continue your registration, track your application, and access your digital pass."
-        >
-          <Button onClick={() => navigate('/scan')} className="gap-1.5" aria-label="Scan QR to register">
-            <ScanLine className="size-3.5" aria-hidden="true" /> Scan QR
-          </Button>
+        <div className="mt-2 flex flex-wrap items-center justify-center gap-3">
           <Button
-            onClick={() => navigate('/login')}
+            onClick={() => navigate('/admin/login')}
             variant="outline"
             className="gap-1.5"
-            aria-label="Pilgrim login"
+            aria-label="Admin login"
           >
-            <UserRound className="size-3.5" aria-hidden="true" /> Pilgrim Login
+            <ShieldCheck className="size-3.5" aria-hidden="true" /> Admin Login
           </Button>
-        </PortalCard>
-
-        <PortalCard
-          icon={ShieldCheck}
-          title="Admin Portal"
-          description="Manage events, registrations, approvals, analytics, operators, notifications and reports."
-        >
-          <Button asChild variant="outline" className="gap-1.5">
-            <Link to="/admin/login" aria-label="Admin login">
-              <ShieldCheck className="size-3.5" aria-hidden="true" /> Admin Login
-            </Link>
-          </Button>
-        </PortalCard>
-
-        <PortalCard
-          icon={Smartphone}
-          title="Operator Portal"
-          description="Verify pilgrim passes, manage entry verification, view verification history."
-        >
-          <Button asChild variant="outline" className="gap-1.5">
-            <Link to="/operator/login" aria-label="Operator login">
-              <Smartphone className="size-3.5" aria-hidden="true" /> Operator Login
-            </Link>
-          </Button>
-        </PortalCard>
+        </div>
       </motion.div>
 
       {/* How It Works */}

@@ -76,7 +76,13 @@ export const RegistrationsTable = ({
       {
         id: 'pilgrimId',
         header: 'Pilgrim ID',
+        meta: { tabletHidden: true },
         cell: ({ row }) => <span className="font-mono text-xs">{row.original.pilgrimId || '—'}</span>,
+      },
+      {
+        id: 'mobile',
+        header: 'Mobile',
+        cell: ({ row }) => row.original.personal?.data?.mobile || '—',
       },
       {
         id: 'event',
@@ -89,8 +95,19 @@ export const RegistrationsTable = ({
         cell: ({ row }) => <RegistrationStatusBadge status={row.original.registrationStatus} />,
       },
       {
+        id: 'qrStatus',
+        header: 'QR Status',
+        meta: { tabletHidden: true },
+        cell: ({ row }) => (
+          <span className="text-xs capitalize text-muted-foreground">
+            {row.original.qrId?.status || '—'}
+          </span>
+        ),
+      },
+      {
         id: 'gender',
         header: 'Gender',
+        meta: { tabletHidden: true },
         cell: ({ row }) => (
           <span className="capitalize">{row.original.personal?.data?.gender || '—'}</span>
         ),
@@ -180,7 +197,7 @@ export const RegistrationsTable = ({
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex justify-end">
+      <div className="hidden justify-end md:flex">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="outline" size="sm" className="gap-1.5">
@@ -204,13 +221,95 @@ export const RegistrationsTable = ({
         </DropdownMenu>
       </div>
 
-      <div className="glass-card overflow-x-auto rounded-2xl border-none">
+      {/* Mobile: one tappable card per registration instead of a
+          horizontally-scrolling table — no dropdown-hidden actions, the two
+          that matter (View Details, and Approve/Reject while submitted)
+          are always visible and thumb-sized. */}
+      <div className="flex flex-col gap-3 md:hidden">
+        {registrations.length === 0 ? (
+          <div className="glass-card rounded-2xl border-none p-8 text-center text-sm text-muted-foreground">
+            No registrations match these filters.
+          </div>
+        ) : (
+          registrations.map((registration) => {
+            const canApprove = registration.registrationStatus === 'submitted';
+            return (
+              <div key={registration._id} className="glass-card flex flex-col gap-3 rounded-2xl border-none p-4">
+                <div className="flex items-start justify-between gap-2">
+                  <p className="min-w-0 truncate font-semibold text-foreground">
+                    {registration.personal?.data?.fullName || '—'}
+                  </p>
+                  <RegistrationStatusBadge status={registration.registrationStatus} />
+                </div>
+
+                <div className="grid grid-cols-2 gap-x-3 gap-y-2.5 text-xs">
+                  <div>
+                    <p className="text-muted-foreground">Registration No</p>
+                    <p className="font-mono font-medium text-foreground">
+                      {registration.registrationNumber || '—'}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Mobile</p>
+                    <p className="font-medium text-foreground">{registration.personal?.data?.mobile || '—'}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">State</p>
+                    <p className="font-medium text-foreground">{registration.personal?.data?.state || '—'}</p>
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-muted-foreground">Event</p>
+                    <p className="truncate font-medium text-foreground">{registration.eventId?.name || '—'}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Submitted</p>
+                    <p className="font-medium text-foreground">
+                      {registration.submittedAt ? formatDateTime(registration.submittedAt) : '—'}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap gap-2 pt-1">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-9 flex-1 gap-1.5"
+                    onClick={() => onView(registration._id)}
+                  >
+                    <Eye className="size-3.5" /> View Details
+                  </Button>
+                  {canApprove && (
+                    <>
+                      <Button size="sm" className="h-9 flex-1 gap-1.5" onClick={() => onApprove(registration._id)}>
+                        <Check className="size-3.5" /> Approve
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-9 flex-1 gap-1.5"
+                        onClick={() => onReject(registration._id)}
+                      >
+                        <X className="size-3.5" /> Reject
+                      </Button>
+                    </>
+                  )}
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
+
+      <div className="glass-card hidden overflow-x-auto rounded-2xl border-none md:block">
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id}>
                 {headerGroup.headers.map((header) => (
-                  <TableHead key={header.id}>
+                  <TableHead
+                    key={header.id}
+                    className={header.column.columnDef.meta?.tabletHidden ? 'hidden lg:table-cell' : undefined}
+                  >
                     {header.isPlaceholder ? null : (
                       <button
                         type="button"
@@ -241,7 +340,10 @@ export const RegistrationsTable = ({
               table.getRowModel().rows.map((row) => (
                 <TableRow key={row.id}>
                   {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id}>
+                    <TableCell
+                      key={cell.id}
+                      className={cell.column.columnDef.meta?.tabletHidden ? 'hidden lg:table-cell' : undefined}
+                    >
                       {flexRender(cell.column.columnDef.cell, cell.getContext())}
                     </TableCell>
                   ))}
