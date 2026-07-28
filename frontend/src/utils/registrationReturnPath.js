@@ -5,9 +5,10 @@
 // must never hold auth tokens (those stay in the zustand-persisted stores).
 const STORAGE_KEY = 'qr-registration-return-path';
 
-export const setRegistrationReturnPath = (code) => {
-  if (!code) return;
-  sessionStorage.setItem(STORAGE_KEY, `/register/${code}`);
+export const setRegistrationReturnPath = (pathOrCode) => {
+  if (!pathOrCode) return;
+  const path = pathOrCode.startsWith('/') ? pathOrCode : `/register/${pathOrCode}`;
+  sessionStorage.setItem(STORAGE_KEY, path);
 };
 
 export const getRegistrationReturnPath = () => sessionStorage.getItem(STORAGE_KEY);

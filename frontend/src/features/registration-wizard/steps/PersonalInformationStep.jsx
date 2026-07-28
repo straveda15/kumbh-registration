@@ -29,25 +29,39 @@ import {
 } from '@/validators/personalInformation.schema';
 import { INDIAN_STATES_AND_UTS } from '@/utils/indianStates';
 import { CITIES_BY_STATE } from '@/utils/indianCitiesByState';
+import { DISTRICTS_BY_STATE } from '@/utils/indianDistrictsByState';
+import { TALUKAS_BY_DISTRICT } from '@/utils/indianTalukasByDistrict';
 import { computeAge } from '@/utils/computeAge';
 import { useWizardUiStore } from '@/store/useWizardUiStore';
 import { useWizardLiveDraftStore } from '@/store/useWizardLiveDraftStore';
 import { WIZARD_STEP_META } from '@/utils/wizardSteps';
+import { useDocuments } from '@/features/documents/hooks/useDocuments';
 
 const NEXT_STEP = WIZARD_STEP_META[1]; // Emergency Contact
 
 const STATE_OPTIONS = INDIAN_STATES_AND_UTS.map((state) => ({ value: state, label: state }));
-const EMPTY_CITY_OPTIONS = [];
+const EMPTY_OPTIONS = [];
 
-// Built once at module load, not per render/per keystroke — cityOptions
-// below now reads a stable array reference straight out of this map
-// instead of calling .map() fresh on every render, which is what happens
-// now that live-preview mirroring (see the form.watch effect below)
-// re-renders this component on every keystroke, not just on blur.
+// Built once at module load — stable references so re-renders caused by
+// live-preview mirroring (form.watch effect) don't rebuild on every keystroke.
 const CITY_OPTIONS_BY_STATE = Object.fromEntries(
   Object.entries(CITIES_BY_STATE).map(([state, cities]) => [
     state,
     cities.map((city) => ({ value: city, label: city })),
+  ])
+);
+
+const DISTRICT_OPTIONS_BY_STATE = Object.fromEntries(
+  Object.entries(DISTRICTS_BY_STATE).map(([state, districts]) => [
+    state,
+    districts.map((d) => ({ value: d, label: d })),
+  ])
+);
+
+const TALUKA_OPTIONS_BY_DISTRICT = Object.fromEntries(
+  Object.entries(TALUKAS_BY_DISTRICT).map(([district, talukas]) => [
+    district,
+    talukas.map((t) => ({ value: t, label: t })),
   ])
 );
 
@@ -64,6 +78,9 @@ export const PersonalInformationStep = ({ code, initialData }) => {
   const setLiveSection = useWizardLiveDraftStore((state) => state.setLiveSection);
   const saveMutation = useSavePersonalInformation(code);
   const saveAccountMutation = useSaveAccountCredentials(code);
+
+  // Used to check if a profile photo has been uploaded (mandatory).
+  const { data: allDocuments } = useDocuments();
 
   const form = useForm({
     resolver: zodResolver(personalInformationSchema),
@@ -82,7 +99,24 @@ export const PersonalInformationStep = ({ code, initialData }) => {
 
   const age = computeAge(form.watch('dob'));
   const selectedState = form.watch('state');
-  const cityOptions = selectedState ? CITY_OPTIONS_BY_STATE[selectedState] || EMPTY_CITY_OPTIONS : EMPTY_CITY_OPTIONS;
+  const selectedDistrict = form.watch('district');
+
+  // Cascading options — each tier reads from its stable pre-built map.
+  const cityOptions = selectedState
+    ? CITY_OPTIONS_BY_STATE[selectedState] || EMPTY_OPTIONS
+    : EMPTY_OPTIONS;
+
+  const districtOptions = selectedState
+    ? DISTRICT_OPTIONS_BY_STATE[selectedState] || EMPTY_OPTIONS
+    : EMPTY_OPTIONS;
+
+  const talukaOptions = selectedDistrict
+    ? TALUKA_OPTIONS_BY_DISTRICT[selectedDistrict] || EMPTY_OPTIONS
+    : EMPTY_OPTIONS;
+
+  // Check whether a profile photo has been uploaded.
+  const profilePhotoDoc = (allDocuments || []).find((doc) => doc.type === 'profilePhoto');
+  const hasPhoto = Boolean(profilePhotoDoc);
 
   // Autosave: React's onBlur bubbles from any descendant field, so a single
   // handler on the form covers every input. Only persists once the whole
@@ -126,6 +160,12 @@ export const PersonalInformationStep = ({ code, initialData }) => {
   };
 
   const handleNext = async () => {
+    // Photo is mandatory — block navigation if not uploaded.
+    if (!hasPhoto) {
+      toast.error('Please upload or capture a profile photo before continuing.');
+      return;
+    }
+
     const saved = await persist();
     if (saved) setActiveStep(NEXT_STEP.key);
   };
@@ -148,8 +188,14 @@ export const PersonalInformationStep = ({ code, initialData }) => {
           </div>
         </CardHeader>
         <CardContent>
+          {/* Profile Photo — mandatory. Show error hint when missing. */}
           <div className="mb-3 sm:mb-4">
             <DocumentUploadCard type="profilePhoto" variant="compact" />
+            {!hasPhoto && (
+              <p className="mt-1.5 text-xs text-[#FF7262] animate-in fade-in duration-200">
+                Profile photo is required. Please upload or capture a photo.
+              </p>
+            )}
           </div>
 
           <form
@@ -191,7 +237,7 @@ export const PersonalInformationStep = ({ code, initialData }) => {
               <Input className="h-14 px-4" {...form.register('nationality')} />
             </Field>
 
-            <Field label="Aadhaar Card Number" error={form.formState.errors.aadhaarNumber?.message}>
+            <Field label="Aadhaar Card Number *" error={form.formState.errors.aadhaarNumber?.message}>
               <Input
                 className="h-14 px-4"
                 {...form.register('aadhaarNumber')}
@@ -223,6 +269,7 @@ export const PersonalInformationStep = ({ code, initialData }) => {
               <Input className="h-14 px-4" type="email" {...form.register('email')} placeholder="you@example.com" />
             </Field>
 
+            {/* Preferred Language — optional, expanded to 14 languages */}
             <Field label="Preferred Language" error={form.formState.errors.language?.message}>
               <Select
                 value={form.watch('language')}
@@ -261,6 +308,7 @@ export const PersonalInformationStep = ({ code, initialData }) => {
               />
             </Field>
 
+            {/* ── State → District → Taluka cascading dropdowns ── */}
             <Field label="State" error={form.formState.errors.state?.message}>
               <Combobox
                 className="h-14 px-4"
@@ -268,10 +316,9 @@ export const PersonalInformationStep = ({ code, initialData }) => {
                 value={selectedState}
                 onValueChange={(value) => {
                   form.setValue('state', value, { shouldValidate: true, shouldDirty: true });
-                  // Cities are scoped to the selected state — a previously
-                  // picked city almost never belongs to the new state, so
-                  // clear it rather than leave a stale, invisible-in-the-
-                  // new-list value sitting in the form.
+                  // Reset dependent fields whenever state changes.
+                  form.setValue('district', '', { shouldValidate: false, shouldDirty: true });
+                  form.setValue('taluka', '', { shouldValidate: false, shouldDirty: true });
                   form.setValue('village', '', { shouldValidate: true, shouldDirty: true });
                 }}
                 placeholder="Select State"
@@ -280,12 +327,39 @@ export const PersonalInformationStep = ({ code, initialData }) => {
               />
             </Field>
 
+            {/* District — optional, disabled until a state is selected */}
             <Field label="District" error={form.formState.errors.district?.message}>
-              <Input className="h-14 px-4" {...form.register('district')} />
+              <Combobox
+                className="h-14 px-4"
+                options={districtOptions}
+                value={selectedDistrict}
+                onValueChange={(value) => {
+                  form.setValue('district', value, { shouldValidate: true, shouldDirty: true });
+                  // Reset taluka whenever district changes.
+                  form.setValue('taluka', '', { shouldValidate: false, shouldDirty: true });
+                }}
+                placeholder={selectedState ? 'Select District' : 'Select State first'}
+                searchPlaceholder="Search districts…"
+                emptyText="No matching district."
+                disabled={!selectedState}
+              />
             </Field>
 
+            {/* Taluka — optional, disabled until a district is selected */}
             <Field label="Taluka" error={form.formState.errors.taluka?.message}>
-              <Input className="h-14 px-4" {...form.register('taluka')} />
+              <Combobox
+                className="h-14 px-4"
+                options={talukaOptions}
+                value={form.watch('taluka')}
+                onValueChange={(value) =>
+                  form.setValue('taluka', value, { shouldValidate: true, shouldDirty: true })
+                }
+                placeholder={selectedDistrict ? 'Select Taluka' : 'Select District first'}
+                searchPlaceholder="Search talukas…"
+                emptyText="No matching taluka — pick 'Use' below to enter as typed."
+                allowCustomValue
+                disabled={!selectedDistrict}
+              />
             </Field>
 
             <Field label="Village / Town" error={form.formState.errors.village?.message}>
@@ -298,18 +372,19 @@ export const PersonalInformationStep = ({ code, initialData }) => {
                 }
                 placeholder={selectedState ? 'Select City / Town' : 'Select State First'}
                 searchPlaceholder="Search city or town…"
-                emptyText="No matching city — pick “Use” below to enter it as typed."
+                emptyText="No matching city — pick 'Use' below to enter it as typed."
                 allowCustomValue
                 disabled={!selectedState}
               />
             </Field>
 
+            {/* Address — optional */}
             <Field
               label="Address"
               className="lg:col-span-2"
               error={form.formState.errors.address?.message}
             >
-              <Input className="h-14 px-4" {...form.register('address')} placeholder="House / street" />
+              <Input className="h-14 px-4" {...form.register('address')} placeholder="House / street (optional)" />
             </Field>
 
             <Field label="PIN Code" error={form.formState.errors.pinCode?.message}>
@@ -334,7 +409,7 @@ export const PersonalInformationStep = ({ code, initialData }) => {
           disabled={saveMutation.isPending || saveAccountMutation.isPending}
           className="h-12 w-full gap-1.5 rounded-2xl px-6 text-base font-semibold shadow-lg shadow-primary/20 transition-all duration-150 hover:-translate-y-0.5 hover:scale-[1.02] hover:bg-[var(--w-accent-hover)] sm:h-[52px] sm:w-auto"
         >
-          Save & Continue <ArrowRight className="size-4" />
+          Save &amp; Continue <ArrowRight className="size-4" />
         </Button>
       </div>
     </motion.div>
