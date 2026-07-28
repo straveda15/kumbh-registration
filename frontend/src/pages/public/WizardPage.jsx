@@ -48,8 +48,8 @@ export const WizardPage = () => {
   // even validated, since the requirement is "never land on / after
   // logout" regardless of whether this particular code turns out valid.
   useEffect(() => {
-    setRegistrationReturnPath(code);
-  }, [code]);
+    setRegistrationReturnPath(`${location.pathname}${location.search}`);
+  }, [location.pathname, location.search]);
 
   // Defense in depth: a submitted registration's mutation routes are
   // already rejected server-side (assertDraftEditable), but a citizen

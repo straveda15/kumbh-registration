@@ -30,10 +30,13 @@ import {
   DropdownMenuSubContent,
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
+import { useQueryClient } from '@tanstack/react-query';
 import { useHasCitizenSession } from '@/hooks/useHasCitizenSession';
 import { useRegistrationSnapshot } from '@/features/registration-wizard/hooks/useRegistrationSnapshot';
 import { useDraftSessionStore } from '@/store/useDraftSessionStore';
 import { usePilgrimAuthStore } from '@/store/usePilgrimAuthStore';
+import { useWizardLiveDraftStore } from '@/store/useWizardLiveDraftStore';
+import { useWizardUiStore } from '@/store/useWizardUiStore';
 import { getRegistrationReturnPath } from '@/utils/registrationReturnPath';
 
 const NAV_ITEMS = [
@@ -57,6 +60,7 @@ const THEME_OPTIONS = [
 // links, and matches this redesign's "navigation should be simple" goal.
 export const PublicLayout = ({ children }) => {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const hasSession = useHasCitizenSession();
   const { data: snapshot } = useRegistrationSnapshot();
   const clearDraftSession = useDraftSessionStore((state) => state.clearSession);
@@ -69,6 +73,15 @@ export const PublicLayout = ({ children }) => {
   const handleLogout = () => {
     clearDraftSession();
     clearPilgrimSession();
+    useWizardLiveDraftStore.setState({
+      personalInformation: null,
+      medicalProfile: null,
+      travelInformation: null,
+    });
+    useWizardUiStore.setState({
+      activeStep: 'personalInformation',
+    });
+    queryClient.clear();
     setDrawerOpen(false);
     // Never drop a citizen on the landing page: a QR-originated session
     // goes back to its /register/:code, everyone else goes to the login

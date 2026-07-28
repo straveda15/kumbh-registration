@@ -1,7 +1,23 @@
 import { z } from 'zod';
 import { INDIAN_STATES_AND_UTS } from '@/utils/indianStates';
 
-export const LANGUAGE_OPTIONS = ['Marathi', 'Hindi', 'English'];
+// Expanded list of commonly used Indian languages.
+export const LANGUAGE_OPTIONS = [
+  'English',
+  'Hindi',
+  'Marathi',
+  'Gujarati',
+  'Kannada',
+  'Tamil',
+  'Telugu',
+  'Malayalam',
+  'Punjabi',
+  'Bengali',
+  'Urdu',
+  'Sanskrit',
+  'Nepali',
+  'Kashmiri',
+];
 
 // Backs Step 1 (Personal Information). The backend stores this step's
 // answers as a flexible `data` object (see backend increment 1 design
@@ -31,21 +47,30 @@ export const personalInformationSchema = z
     password: z.string().optional().default(''),
     confirmPassword: z.string().optional().default(''),
     nationality: z.string().trim().min(1, 'Nationality is required'),
+    // Mandatory: exactly 12 numeric digits.
     aadhaarNumber: z
       .string()
       .trim()
-      .regex(/^[0-9]{12}$/, 'Enter a valid 12-digit Aadhaar number'),
+      .min(1, 'Aadhaar card number is required')
+      .regex(/^[0-9]{12}$/, 'Enter a valid 12-digit numeric Aadhaar number'),
     alternateMobile: z
       .string()
       .trim()
       .regex(/^[0-9]{10}$/, 'Enter a valid 10-digit mobile number')
       .optional()
       .or(z.literal('')),
-    language: z.enum(LANGUAGE_OPTIONS, { message: 'Preferred language is required' }),
-    address: z.string().trim().min(1, 'Address is required'),
+    // Preferred language is now optional.
+    language: z
+      .enum(LANGUAGE_OPTIONS, { message: 'Select a preferred language' })
+      .optional()
+      .or(z.literal('')),
+    // Address is now optional.
+    address: z.string().trim().optional().or(z.literal('')),
     state: z.enum(INDIAN_STATES_AND_UTS, { message: 'State is required' }),
-    district: z.string().trim().min(1, 'District is required'),
-    taluka: z.string().trim().min(1, 'Taluka is required'),
+    // District is now optional (cascading — populated after state pick).
+    district: z.string().trim().optional().or(z.literal('')),
+    // Taluka is now optional (cascading — populated after district pick).
+    taluka: z.string().trim().optional().or(z.literal('')),
     village: z.string().trim().min(1, 'Village/Town is required'),
     pinCode: z
       .string()
