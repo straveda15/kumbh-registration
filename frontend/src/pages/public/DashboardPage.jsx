@@ -100,7 +100,7 @@ const JourneyStepper = ({ verificationStatus }) => {
           </div>
         </div>
 
-        {/* Step 2: Identity Verification */}
+        {/* Step 2: On-Site Identity Verification */}
         <div className="relative z-10 flex flex-col items-center gap-1.5 text-center">
           {isApproved ? (
             <div className="flex size-8 items-center justify-center rounded-full bg-green-500 text-white shadow-sm ring-4 ring-background">
@@ -118,7 +118,7 @@ const JourneyStepper = ({ verificationStatus }) => {
 
           <div>
             <p className="text-[12px] font-semibold leading-tight text-foreground">
-              Identity Verification
+              On-Site Identity Verification
             </p>
             {isApproved ? (
               <Badge variant="success" className="mt-0.5 text-[9.5px] px-1.5 py-0">
@@ -144,7 +144,7 @@ const JourneyStepper = ({ verificationStatus }) => {
 const EntryPassStatusCard = ({ verificationStatus }) => {
   const vStatus = String(verificationStatus || 'PENDING').toUpperCase();
 
-  let badgeLabel = 'Pending Verification';
+  let badgeLabel = 'On-Site Verification Pending';
   let badgeVariant = 'warning';
   let subtitle = 'Tap to view your entry pass.';
   let Icon = Clock;
@@ -237,15 +237,19 @@ const VerificationInfoCard = ({ verificationStatus, rejectionReason }) => {
 
   // Default: PENDING
   return (
-    <div className="glass-card flex flex-col gap-2 rounded-2xl border border-amber-500/25 bg-amber-500/10 p-4 text-amber-900 dark:text-amber-200">
+    <div className="glass-card flex flex-col gap-2.5 rounded-2xl border border-amber-500/25 bg-amber-500/10 p-4 text-amber-900 dark:text-amber-200">
       <div className="flex items-center gap-2">
         <Clock className="size-4.5 shrink-0 text-amber-600 dark:text-amber-400" />
-        <h2 className="text-sm font-bold">Verification Pending</h2>
+        <h2 className="text-sm font-bold">On-Site Verification Pending</h2>
       </div>
       <p className="text-xs leading-relaxed text-amber-800/90 dark:text-amber-300/90">
-        Your registration has been completed successfully. The only remaining step is identity
-        verification at the event venue. Please keep your Entry Pass and a valid government-issued
-        photo ID ready.
+        Your registration has been successfully approved.
+      </p>
+      <p className="text-xs leading-relaxed text-amber-800/90 dark:text-amber-300/90">
+        The final step is on-site identity verification at the event venue.
+      </p>
+      <p className="text-xs leading-relaxed text-amber-800/90 dark:text-amber-300/90">
+        Please carry your Entry Pass along with a valid Government-issued Photo ID. Your QR code will be activated after successful identity verification.
       </p>
     </div>
   );
