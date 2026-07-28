@@ -113,19 +113,17 @@ export const AdminRegistrationDetailPage = () => {
     if (!data?.digitalPass) return;
     setIsGeneratingPdf(true);
     try {
-      const isRevoked = data.digitalPass.status === 'revoked';
-      const isVerified = Boolean(data.digitalPass.passActivated) && !isRevoked;
-      const verificationLabel = isRevoked ? 'Revoked' : isVerified ? 'Verified' : 'Pending On-Site Verification';
-
       await generatePassPdf(
         {
           pilgrimName: data.personal?.data?.fullName,
           registrationNumber: registration.registrationNumber,
           eventName: data.event?.name,
           statusLabel: getRegistrationStatusMeta(status).label,
-          verificationLabel,
+          verificationLabel: data.digitalPass.verificationStatus || 'PENDING',
           accommodation: data.accommodation?.data?.address || data.accommodation?.data?.type,
           qrImage: data.digitalPass.qrImage,
+          profilePhotoUrl: profilePhoto?.url,
+          rejectionReason: data.rejectionReason || data.statusNote,
         },
         `${registration.registrationNumber || 'digital-pass'}.pdf`
       );
