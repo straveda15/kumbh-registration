@@ -82,6 +82,8 @@ const buildWizardProgress = (registration) => {
   return {
     registrationId: registration._id,
     registrationStatus: registration.registrationStatus,
+    rejectionReason: registration.rejectionReason || null,
+    statusNote: registration.statusNote || null,
     stepStatus,
     completionPercentage: registration.completionPercentage,
     currentStep: getCurrentStep(stepStatus),

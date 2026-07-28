@@ -18,7 +18,9 @@ const DashboardSkeleton = () => (
 
 const ENTRY_PASS_META = {
   verified: { label: 'Verified', variant: 'default', icon: BadgeCheck },
-  pending: { label: 'Pending Verification', variant: 'outline', icon: ShieldAlert },
+  approved: { label: 'Approved', variant: 'success', icon: BadgeCheck },
+  pending: { label: 'Pending Verification', variant: 'warning', icon: ShieldAlert },
+  rejected: { label: 'Rejected', variant: 'destructive', icon: ShieldAlert },
   revoked: { label: 'Revoked', variant: 'destructive', icon: ShieldAlert },
   none: { label: 'Not Generated', variant: 'outline', icon: ShieldAlert },
 };
@@ -96,15 +98,20 @@ export const DashboardPage = () => {
 
   const personal = snapshot?.personalInformation?.data ?? {};
   const digitalPass = snapshot?.digitalPass;
-  const isRevoked = digitalPass?.status === 'revoked';
-  const isVerified = Boolean(digitalPass?.passActivated) && !isRevoked;
-  const passMeta = !digitalPass
-    ? ENTRY_PASS_META.none
-    : isRevoked
-      ? ENTRY_PASS_META.revoked
-      : isVerified
-        ? ENTRY_PASS_META.verified
-        : ENTRY_PASS_META.pending;
+  const regStatus = (snapshot?.registrationStatus || 'submitted').toLowerCase();
+  const rejectionReason = snapshot?.rejectionReason || snapshot?.statusNote;
+
+  let passMeta = ENTRY_PASS_META.pending;
+  if (regStatus === 'approved') {
+    passMeta = ENTRY_PASS_META.approved;
+  } else if (regStatus === 'rejected') {
+    passMeta = ENTRY_PASS_META.rejected;
+  } else if (regStatus === 'draft' && !snapshot?.registrationNumber) {
+    passMeta = ENTRY_PASS_META.none;
+  } else if (digitalPass?.status === 'revoked') {
+    passMeta = ENTRY_PASS_META.revoked;
+  }
+
   const PassIcon = passMeta.icon;
 
   return (
@@ -123,6 +130,20 @@ export const DashboardPage = () => {
       )}
 
       <RegistrationNumberCard registrationNumber={snapshot?.registrationNumber} />
+
+      {regStatus === 'rejected' && (
+        <div className="glass-card flex flex-col items-start gap-1.5 rounded-2xl border border-destructive/20 bg-destructive/10 p-4 text-destructive">
+          <div className="flex items-center gap-2 font-semibold text-sm">
+            <ShieldAlert className="size-4 shrink-0" />
+            <span>Registration Rejected</span>
+          </div>
+          <p className="text-xs text-destructive/90">
+            {rejectionReason
+              ? `Reason: ${rejectionReason}`
+              : 'Your registration was rejected by the admin team.'}
+          </p>
+        </div>
+      )}
 
       <Link
         to="/pass"

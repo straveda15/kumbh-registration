@@ -25,6 +25,9 @@ export const useRegistrationSnapshot = () => {
     queryFn: getDraft,
     enabled: hasSession,
     retry: false,
+    staleTime: 0,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
   });
 
   return { ...query, hasSession };
