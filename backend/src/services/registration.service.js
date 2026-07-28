@@ -20,7 +20,7 @@ import { REGISTRATION_STATUS } from '../constants/registrationStatus.js';
 import { STEP_STATUS } from '../constants/stepStatus.js';
 import { WIZARD_STEPS, WIZARD_STEP_VALUES } from '../constants/wizardSteps.js';
 import { EVENT_STATUS } from '../constants/eventStatus.js';
-import { DIGITAL_PASS_STATUS } from '../constants/digitalPassStatus.js';
+import { DIGITAL_PASS_STATUS, VERIFICATION_STATUS } from '../constants/digitalPassStatus.js';
 import { getStateCode } from '../constants/stateCodes.js';
 import config from '../config/env.js';
 import * as qrService from './qr.service.js';
@@ -385,6 +385,14 @@ export const assembleRegistrationDetail = async (registration) => {
 const isPassActivated = async (digitalPassId) =>
   digitalPassId ? Boolean(await ScanLog.exists({ digitalPassId, result: 'approved' })) : false;
 
+export const getEffectiveVerificationStatus = (digitalPass, registrationStatus) => {
+  if (digitalPass?.verificationStatus) return digitalPass.verificationStatus;
+  const regLow = (registrationStatus || '').toLowerCase();
+  if (regLow === 'approved') return VERIFICATION_STATUS.APPROVED;
+  if (regLow === 'rejected') return VERIFICATION_STATUS.REJECTED;
+  return VERIFICATION_STATUS.PENDING;
+};
+
 // The citizen's own view of their registration. The QR code/image and
 // pilgrimId are confidential until the pilgrim is actually verified at the
 // gate — this is the ONLY place that redaction happens; admin
@@ -395,12 +403,14 @@ export const getDraft = async (registration) => {
   const { pilgrimId: _pilgrimId, ...progress } = buildWizardProgress(registration);
   const detail = await assembleRegistrationDetail(registration);
   const passActivated = await isPassActivated(detail.digitalPass?._id);
+  const verificationStatus = getEffectiveVerificationStatus(detail.digitalPass, registration.registrationStatus);
 
   return {
     ...progress,
     ...detail,
     digitalPass: detail.digitalPass && {
       ...detail.digitalPass.toObject(),
+      verificationStatus,
       qrCode: passActivated ? detail.digitalPass.qrCode : null,
       qrImage: passActivated ? detail.digitalPass.qrImage : null,
       passActivated,
@@ -514,6 +524,7 @@ export const submitRegistration = async (registration, meta = {}) => {
     qrCode: passUniqueCode,
     qrImage,
     status: DIGITAL_PASS_STATUS.ACTIVE,
+    verificationStatus: VERIFICATION_STATUS.PENDING,
     issuedAt: new Date(),
   });
 
@@ -587,6 +598,17 @@ export const approveRegistration = async (id, adminId) => {
   registration.reviewedBy = adminId;
   await registration.save();
 
+  if (registration.digitalPassId) {
+    await DigitalPass.findByIdAndUpdate(registration.digitalPassId, {
+      verificationStatus: VERIFICATION_STATUS.APPROVED,
+    });
+  } else {
+    await DigitalPass.findOneAndUpdate(
+      { registrationId: registration._id },
+      { verificationStatus: VERIFICATION_STATUS.APPROVED }
+    );
+  }
+
   await logActivity({
     actorType: 'admin',
     actorId: adminId,
@@ -633,6 +655,17 @@ export const rejectRegistration = async (id, adminId, reason) => {
   registration.reviewedBy = adminId;
   registration.rejectionReason = reason;
   await registration.save();
+
+  if (registration.digitalPassId) {
+    await DigitalPass.findByIdAndUpdate(registration.digitalPassId, {
+      verificationStatus: VERIFICATION_STATUS.REJECTED,
+    });
+  } else {
+    await DigitalPass.findOneAndUpdate(
+      { registrationId: registration._id },
+      { verificationStatus: VERIFICATION_STATUS.REJECTED }
+    );
+  }
 
   await logActivity({
     actorType: 'admin',
@@ -786,6 +819,21 @@ export const restoreRegistration = async (id, adminId) => {
   registration.restoredAt = new Date();
   registration.reviewedBy = adminId;
   await registration.save();
+
+  const restoredVerificationStatus = restoredStatus === REGISTRATION_STATUS.APPROVED
+    ? VERIFICATION_STATUS.APPROVED
+    : VERIFICATION_STATUS.PENDING;
+
+  if (registration.digitalPassId) {
+    await DigitalPass.findByIdAndUpdate(registration.digitalPassId, {
+      verificationStatus: restoredVerificationStatus,
+    });
+  } else {
+    await DigitalPass.findOneAndUpdate(
+      { registrationId: registration._id },
+      { verificationStatus: restoredVerificationStatus }
+    );
+  }
 
   await logActivity({
     actorType: 'admin',
@@ -984,6 +1032,7 @@ export const getRegistrationById = async (id) => {
   // (which is all DigitalPass.status alone could ever say, since that
   // field is set to 'active' at submit and never changes after).
   const passActivated = await isPassActivated(digitalPass?._id);
+  const verificationStatus = getEffectiveVerificationStatus(digitalPass, registration.registrationStatus);
 
   return {
     registration,
@@ -1001,7 +1050,11 @@ export const getRegistrationById = async (id) => {
     familyMembers,
     documents,
     auditLogs,
-    digitalPass: digitalPass && { ...digitalPass.toObject(), passActivated },
+    digitalPass: digitalPass && {
+      ...digitalPass.toObject(),
+      verificationStatus,
+      passActivated,
+    },
   };
 };
 

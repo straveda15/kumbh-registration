@@ -1,5 +1,10 @@
 import mongoose from 'mongoose';
-import { DIGITAL_PASS_STATUS, DIGITAL_PASS_STATUS_VALUES } from '../constants/digitalPassStatus.js';
+import {
+  DIGITAL_PASS_STATUS,
+  DIGITAL_PASS_STATUS_VALUES,
+  VERIFICATION_STATUS,
+  VERIFICATION_STATUS_VALUES,
+} from '../constants/digitalPassStatus.js';
 
 // Created (schema only) in this increment. Generation of passNumber/qrCode/
 // qrImage happens in a later increment once final-submit exists — hence
@@ -44,6 +49,11 @@ const digitalPassSchema = new mongoose.Schema(
       type: String,
       enum: DIGITAL_PASS_STATUS_VALUES,
       default: DIGITAL_PASS_STATUS.PENDING,
+    },
+    verificationStatus: {
+      type: String,
+      enum: VERIFICATION_STATUS_VALUES,
+      default: VERIFICATION_STATUS.PENDING,
     },
     issuedAt: {
       type: Date,

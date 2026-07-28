@@ -1,159 +1,211 @@
 import { forwardRef } from 'react';
-import { UserRound, BadgeCheck, ShieldAlert, Lock, IdCard } from 'lucide-react';
+import { UserRound, BadgeCheck, ShieldAlert, Lock, Info } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { getRegistrationStatusMeta } from '@/utils/registrationStatus';
+import { cn } from '@/lib/utils';
 
-// Pass-level verification is a distinct concept from registration approval:
-// an admin approving a registration and an operator verifying identity at
-// the gate are two different steps. `digitalPass.passActivated` (computed
-// server-side in registration.service.js's getDraft, from whether an
-// approved ScanLog entry exists for this pass) is the real signal for
-// on-site verification — NOT DigitalPass.status, which is set to 'active'
-// at submit time and never changes after that (unrelated to the gate).
-// The backend only sends the real qrCode/qrImage once passActivated is
-// true; before that they're null, so this component never has the QR to
-// leak even if it wanted to.
-const VERIFICATION_META = {
-  verified: { label: 'Verified', badgeVariant: 'default', icon: BadgeCheck },
-  pending: { label: 'Pending On-Site Verification', badgeVariant: 'outline', icon: ShieldAlert },
-  revoked: { label: 'Revoked', badgeVariant: 'destructive', icon: ShieldAlert },
+const getVerificationBadgeMeta = (status) => {
+  const s = String(status || '').trim().toUpperCase();
+  if (s === 'APPROVED') {
+    return { badgeVariant: 'success', icon: BadgeCheck };
+  }
+  if (s === 'REJECTED') {
+    return { badgeVariant: 'destructive', icon: ShieldAlert };
+  }
+  return { badgeVariant: 'warning', icon: ShieldAlert };
 };
 
-// The pass visual itself, extracted so both the citizen DigitalPassPage and
-// the admin Registration Detail's Digital Pass tab render identically
-// instead of duplicating this markup. Forwards a ref so callers can pass
-// the node straight into utils/generatePassPdf.js.
+// ── Shared row style ───────────────────────────────────────────────────────
+const ROW = 'flex h-9 items-center justify-between gap-3 px-4';
+const LABEL = 'shrink-0 text-[12px] leading-none text-muted-foreground';
+const VALUE = 'text-right text-[12px] font-medium leading-none text-foreground';
+
 export const DigitalPassCard = forwardRef(
   (
     {
       digitalPass,
-      personal = {},
-      accommodation = {},
+      personal        = {},
+      accommodation   = {},
       registrationStatus,
       registrationNumber,
-      // The pilgrim-facing pass (DigitalPassPage) hides this — Registration
-      // Number is meant to stay an internal login identifier, not something
-      // prominently shown on the pass itself. Admin's copy of this same
-      // card (AdminRegistrationDetailPage) still passes it and needs it,
-      // so this defaults to showing it rather than flipping the meaning at
-      // every other call site.
       hideRegistrationNumber = false,
       eventName,
       profilePhotoUrl,
+      rejectionReason,
     },
     ref
   ) => {
+    // ── Derived state ──────────────────────────────────────────────────────
     const statusMeta = getRegistrationStatusMeta(registrationStatus);
+    const rawVerificationStatus = digitalPass?.verificationStatus || 'PENDING';
+    const verificationMeta = getVerificationBadgeMeta(rawVerificationStatus);
+    const VerificationIcon = verificationMeta.icon;
+
     const isRevoked = digitalPass?.status === 'revoked';
-    // Two separate questions: whether there's a real QR to render at all
-    // (the backend only includes qrImage for the citizen once verified —
-    // see getDraft — but never redacts it for admin, who should keep
-    // seeing the real code regardless of verification state) and whether
-    // the pilgrim has actually been verified (drives the badge/banner for
-    // both views identically).
+    const isRejected = String(rawVerificationStatus).toUpperCase() === 'REJECTED';
+    const isApproved = String(rawVerificationStatus).toUpperCase() === 'APPROVED';
     const hasQrImage = Boolean(digitalPass?.qrImage);
-    const isVerified = Boolean(digitalPass?.passActivated) && !isRevoked;
-    const verification = isRevoked
-      ? VERIFICATION_META.revoked
-      : isVerified
-        ? VERIFICATION_META.verified
-        : VERIFICATION_META.pending;
-    const VerificationIcon = verification.icon;
+    const isVerified = (isApproved || Boolean(digitalPass?.passActivated)) && !isRevoked && !isRejected;
+
+    const hasAccommodation = accommodation.address || accommodation.type;
 
     return (
-      <div ref={ref} className="glass-card overflow-hidden rounded-3xl border-none">
-        <div className="bg-primary/15 px-6 py-4 text-center">
-          <p className="text-xs font-medium tracking-wider text-primary uppercase">
+      <div ref={ref} className="glass-card overflow-hidden rounded-2xl border-none">
+        {/* ════ HEADER ════ */}
+        <div className="flex items-center justify-center bg-primary/15 px-4 py-2">
+          <p className="text-[10px] font-extrabold tracking-[0.22em] text-primary uppercase">
             Kumbh Registration Pass
           </p>
         </div>
-        <div className="flex flex-col items-center gap-4 px-6 py-6">
-          <div className="relative flex size-24 items-center justify-center overflow-hidden rounded-full bg-white/5 ring-1 ring-white/10">
+
+        {/* ════ HERO: avatar → name ════ */}
+        <div className="flex flex-col items-center gap-1.5 px-4 pt-4 pb-3">
+          {/* Avatar */}
+          <div className="relative flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white/5 ring-2 ring-white/12">
             {profilePhotoUrl ? (
               <img src={profilePhotoUrl} alt="Pilgrim" className="size-full object-cover" />
             ) : (
-              <UserRound className="size-10 text-muted-foreground" />
+              <UserRound className="size-7 text-muted-foreground" />
             )}
             {isVerified && (
-              <span className="absolute -right-1 -bottom-1 flex size-6 items-center justify-center rounded-full bg-primary text-primary-foreground ring-2 ring-background">
-                <BadgeCheck className="size-4" />
+              <span className="absolute right-0 bottom-0 flex size-[18px] items-center justify-center rounded-full bg-primary text-primary-foreground ring-2 ring-background">
+                <BadgeCheck className="size-3" />
               </span>
             )}
           </div>
-          <p className="text-lg font-semibold text-foreground">{personal.fullName || 'Pilgrim'}</p>
 
+          {/* Name */}
+          <p className="text-[15px] font-semibold leading-tight tracking-[-0.01em] text-foreground">
+            {personal.fullName || 'Pilgrim'}
+          </p>
+        </div>
+
+        {/* ════ DIVIDER ════ */}
+        <div className="mx-4 h-px bg-white/8" />
+
+        {/* ════ QR SECTION ════ */}
+        <div className="flex items-center justify-center px-4 py-4">
           {hasQrImage ? (
             <img
               src={digitalPass.qrImage}
-              alt="Digital pass QR code"
-              className="size-40 rounded-xl bg-white p-2"
+              alt="Entry pass QR code"
+              className="size-[160px] rounded-xl bg-white p-2 shadow"
             />
           ) : (
-            // The QR is confidential until on-site verification — this
-            // placeholder is shown instead, never the real code, matching
-            // what the backend actually sends (qrImage is null until then).
-            <div className="flex w-full flex-col items-center gap-2 rounded-2xl border border-dashed border-white/20 bg-white/5 px-6 py-8 text-center">
-              <span className="flex size-12 items-center justify-center rounded-full bg-white/10 text-muted-foreground">
-                <Lock className="size-5" />
-              </span>
-              <p className="text-sm font-medium text-foreground">Entry QR Code</p>
-              <p className="text-xs text-muted-foreground">
-                Your entry QR code is securely stored. It will be available only after identity
-                verification at the event.
-              </p>
-              <p className="text-xs text-muted-foreground">
-                Please carry your Registration Number and a valid Government ID.
-              </p>
-            </div>
-          )}
-
-          <div className="flex w-full flex-col gap-2 text-sm">
-            {!hideRegistrationNumber && (
-              <div className="flex items-center justify-between gap-3 rounded-xl bg-white/5 px-4 py-2.5">
-                <span className="text-muted-foreground">Registration No.</span>
-                <span className="font-mono font-medium text-foreground">{registrationNumber || '—'}</span>
+            /* ── Locked QR placeholder ── */
+            <div className="relative size-[160px] shrink-0 overflow-hidden rounded-xl border border-border/25 bg-muted/15 shadow-inner">
+              {/* Simulated QR tiles — blurred background */}
+              <div
+                aria-hidden="true"
+                className="absolute inset-0 grid grid-cols-7 gap-[2.5px] p-2.5 opacity-[0.12] blur-[3px] select-none"
+              >
+                {Array.from({ length: 49 }).map((_, i) => (
+                  <div
+                    key={i}
+                    className={cn(
+                      'rounded-[1.5px]',
+                      (i < 7 && (i < 3 || i > 3))           ? 'bg-foreground' :
+                      (i >= 42 && (i < 46 || i > 46))       ? 'bg-foreground' :
+                      (i % 7 === 0 && i < 21)                ? 'bg-foreground' :
+                      (i % 7 === 6 && i < 21)                ? 'bg-foreground' :
+                      (i * 5 + 2) % 7 === 0                  ? 'bg-foreground' :
+                      (i * 3 + 1) % 5 === 0                  ? 'bg-foreground' :
+                                                               'bg-transparent'
+                    )}
+                  />
+                ))}
               </div>
-            )}
-            <div className="flex items-center justify-between gap-3 rounded-xl bg-white/5 px-4 py-2.5">
-              <span className="text-muted-foreground">Event</span>
-              <span className="font-medium text-foreground">{eventName || '—'}</span>
-            </div>
-            <div className="flex items-center justify-between gap-3 rounded-xl bg-white/5 px-4 py-2.5">
-              <span className="text-muted-foreground">Registration Status</span>
-              <Badge variant={statusMeta.badgeVariant}>{statusMeta.label}</Badge>
-            </div>
-            <div className="flex items-center justify-between gap-3 rounded-xl bg-white/5 px-4 py-2.5">
-              <span className="text-muted-foreground">Verification</span>
-              <Badge variant={verification.badgeVariant} className="gap-1">
-                <VerificationIcon className="size-3" /> {verification.label}
-              </Badge>
-            </div>
-            <div className="flex items-center justify-between gap-3 rounded-xl bg-white/5 px-4 py-2.5">
-              <span className="text-muted-foreground">Accommodation</span>
-              <span className="text-right font-medium text-foreground">
-                {accommodation.address || accommodation.type || '—'}
-              </span>
-            </div>
-          </div>
 
-          {!isVerified && !isRevoked && (
-            <div className="flex w-full flex-col gap-2 rounded-xl bg-amber-500/10 px-4 py-3 text-xs text-amber-200">
-              <p className="flex items-center gap-1.5 font-medium">
-                <IdCard className="size-3.5" /> Important
-              </p>
-              <p>
-                Please carry a valid government-issued ID. Your entry QR code will be activated
-                after identity verification at the event.
-              </p>
+              {/* Frosted overlay + lock */}
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-background/58 backdrop-blur-[6px]">
+                <span className="flex size-10 items-center justify-center rounded-full bg-primary/15 text-primary ring-1 ring-primary/30 shadow-sm">
+                  <Lock className="size-4.5" />
+                </span>
+                <span className="text-[8.5px] font-bold tracking-[0.18em] text-muted-foreground uppercase">
+                  Protected
+                </span>
+              </div>
             </div>
           )}
         </div>
 
-        {!isVerified && (
-          <div className="border-t border-white/10 bg-destructive/10 px-6 py-3 text-center">
-            <p className="text-xs font-semibold tracking-wide text-destructive uppercase">
-              {isRevoked ? 'Entry Pass Revoked' : 'Entry Pass Not Yet Activated'}
+        {/* ════ DIVIDER ════ */}
+        <div className="mx-4 h-px bg-white/8" />
+
+        {/* ════ INFO ROWS ════ */}
+        <div className="flex flex-col divide-y divide-white/7">
+          {!hideRegistrationNumber && registrationNumber && (
+            <div className={ROW}>
+              <span className={LABEL}>Registration No.</span>
+              <span className={cn(VALUE, 'font-mono')}>{registrationNumber}</span>
+            </div>
+          )}
+
+          <div className={ROW}>
+            <span className={LABEL}>Event</span>
+            <span className={cn(VALUE, 'max-w-[55%] truncate')}>{eventName || '—'}</span>
+          </div>
+
+          <div className={ROW}>
+            <span className={LABEL}>Registration Status</span>
+            <Badge variant={statusMeta.badgeVariant} className="shrink-0 text-[10.5px]">
+              {statusMeta.label}
+            </Badge>
+          </div>
+
+          <div className={ROW}>
+            <span className={LABEL}>Verification</span>
+            <Badge variant={verificationMeta.badgeVariant} className="shrink-0 gap-1 text-[10.5px]">
+              <VerificationIcon className="size-2.5 shrink-0" />
+              {rawVerificationStatus}
+            </Badge>
+          </div>
+
+          {hasAccommodation && (
+            <div className={ROW}>
+              <span className={LABEL}>Accommodation</span>
+              <span className={cn(VALUE, 'max-w-[55%] truncate')}>
+                {accommodation.address || accommodation.type}
+              </span>
+            </div>
+          )}
+        </div>
+
+        {/* ════ DYNAMIC ACTIVATION BANNER ════ */}
+        {isApproved ? (
+          <div className="mt-0 border-t border-green-500/20 bg-green-500/10 px-5 py-2.5 text-center">
+            <p className="text-[10px] font-extrabold tracking-[0.14em] text-green-600 dark:text-green-400 uppercase">
+              ENTRY PASS ACTIVE
             </p>
+            <div className="mt-1 inline-flex items-center justify-center gap-1.5 text-[9.5px] leading-tight text-muted-foreground">
+              <Info className="size-2.5 shrink-0 text-green-600 dark:text-green-400" />
+              <span>Your QR Code is active and ready for event entry.</span>
+            </div>
+          </div>
+        ) : isRejected ? (
+          <div className="mt-0 border-t border-destructive/20 bg-destructive/10 px-5 py-2.5 text-center">
+            <p className="text-[10px] font-extrabold tracking-[0.14em] text-destructive uppercase">
+              ENTRY PASS UNAVAILABLE
+            </p>
+            <div className="mt-1 inline-flex items-center justify-center gap-1.5 text-[9.5px] leading-tight text-muted-foreground">
+              <Info className="size-2.5 shrink-0 text-destructive" />
+              <span>Your Entry Pass cannot be activated until verification is successfully completed.</span>
+            </div>
+            {rejectionReason && (
+              <div className="mt-1.5 w-full rounded-lg bg-destructive/15 p-2 text-[9.5px] font-medium text-destructive">
+                Reason: {rejectionReason}
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="mt-0 border-t border-destructive/20 bg-destructive/10 px-5 py-2.5 text-center">
+            <p className="text-[10px] font-extrabold tracking-[0.14em] text-destructive uppercase">
+              ENTRY PASS NOT YET ACTIVATED
+            </p>
+            <div className="mt-1 inline-flex items-center justify-center gap-1.5 text-[9.5px] leading-tight text-muted-foreground">
+              <Info className="size-2.5 shrink-0 text-muted-foreground" />
+              <span>QR Code available after on-site identity verification.</span>
+            </div>
           </div>
         )}
       </div>
