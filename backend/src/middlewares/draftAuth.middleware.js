@@ -43,13 +43,46 @@ export const verifyDraftAccess = asyncHandler(async (req, _res, next) => {
   }
 
   if (isPilgrimToken) {
+    console.log('[DRAFT AUTH DEBUG] Incoming pilgrim token sub (user ID):', decoded.sub);
     const user = await User.findById(decoded.sub);
     if (!user || !user.isActive) {
+      console.log('[DRAFT AUTH DEBUG] Account not found or inactive for user ID:', decoded.sub);
       throw ApiError.unauthorized('Account no longer active');
     }
 
-    const registration = await Registration.findOne({ userId: user._id }).sort({ createdAt: -1 });
+    let registration = await Registration.findOne({ userId: user._id }).sort({ createdAt: -1 });
+
+    // Secondary fallback: if no direct registration by userId exists, check PersonalInformation by user's email/mobile
+    if (!registration && (user.email || user.mobile)) {
+      console.log('[DRAFT AUTH DEBUG] Primary lookup failed. Trying secondary lookup by email/mobile:', user.email, user.mobile);
+      const personalDoc = await PersonalInformation.findOne({
+        $or: [
+          ...(user.email ? [{ 'data.email': user.email.toLowerCase() }] : []),
+          ...(user.mobile ? [{ 'data.mobile': user.mobile }] : []),
+        ],
+      }).sort({ createdAt: -1 });
+
+      if (personalDoc) {
+        registration = await Registration.findById(personalDoc.registrationId);
+        if (registration) {
+          registration.userId = user._id;
+          await registration.save();
+          console.log('[DRAFT AUTH DEBUG] Automatically relinked registration', registration._id, 'to user', user._id);
+        }
+      }
+    }
+
+    console.log(
+      '[DRAFT AUTH DEBUG] Pilgrim registration lookup result:',
+      registration ? `Found Registration ${registration._id}` : 'NONE'
+    );
+
     if (!registration) {
+      console.log(
+        '[DRAFT AUTH DEBUG] Exact reason why "No registration found for this account" is returned: Database query for User ID ' +
+          user._id +
+          ' returned zero matching Registration records.'
+      );
       throw ApiError.notFound('No registration found for this account');
     }
 

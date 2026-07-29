@@ -8,7 +8,7 @@ export const useSubmitRegistration = (code) => {
   return useMutation({
     mutationFn: submitRegistration,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [...DRAFT_QUERY_KEY, code] });
+      queryClient.invalidateQueries({ queryKey: DRAFT_QUERY_KEY });
     },
   });
 };
