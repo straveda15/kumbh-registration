@@ -86,7 +86,7 @@ export const MedicalInformationStep = ({ code, initialData }) => {
       saveStatus={saveMutation.status}
       isSaving={saveMutation.isPending}
     >
-      <WizardField label="Blood Group" error={form.formState.errors.bloodGroup?.message}>
+      <WizardField label="Blood Group *" error={form.formState.errors.bloodGroup?.message}>
         <Select
           value={form.watch('bloodGroup')}
           onValueChange={(value) =>

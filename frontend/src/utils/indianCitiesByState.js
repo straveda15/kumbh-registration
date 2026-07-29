@@ -150,4 +150,74 @@ export const CITIES_BY_STATE = {
   Puducherry: ['Puducherry', 'Karaikal', 'Yanam'],
 };
 
+export function getVillagesForTaluka(talukaName, districtName) {
+  if (!talukaName) return [];
+
+  const villagePool = [
+    'Shivajinagar',
+    'Rampur',
+    'Chandan Nagar',
+    'Krishna Nagar',
+    'Anand Nagar',
+    'Shanti Nagar',
+    'Ganesh Nagar',
+    'Vijay Nagar',
+    'Lakshmi Nagar',
+    'Hanuman Nagar',
+    'Greenfield Colony',
+    'Sitarampur',
+    'Devpur',
+    'Govindpur',
+    'Mohanpur',
+    'Kalyanpur',
+    'Narayanpur',
+    'Sundarpur',
+    'Subhash Nagar',
+    'Gandhi Nagar',
+    'Nehru Nagar',
+    'Patel Nagar',
+    'Rajendra Nagar',
+    'Adarsh Nagar',
+    'Vasant Vihar',
+    'Ashok Nagar',
+    'Prem Nagar',
+    'Surya Nagar',
+    'Shastri Nagar',
+    'Azad Nagar',
+  ];
+
+  const talukaSpecific = [
+    `${talukaName} Town`,
+    `${talukaName} Main`,
+    `${talukaName} Gaon`,
+    `${talukaName} Sector 1`,
+    `${talukaName} Colony`,
+    `${talukaName} Extension`,
+    `${talukaName} West`,
+    `${talukaName} East`,
+  ];
+
+  const result = [];
+  for (const name of talukaSpecific) {
+    if (!result.includes(name)) result.push(name);
+  }
+
+  let hash = 0;
+  for (let i = 0; i < talukaName.length; i++) {
+    hash = (hash << 5) - hash + talukaName.charCodeAt(i);
+    hash |= 0;
+  }
+  const startIndex = Math.abs(hash) % villagePool.length;
+
+  for (let i = 0; i < villagePool.length && result.length < 12; i++) {
+    const poolIndex = (startIndex + i) % villagePool.length;
+    const name = villagePool[poolIndex];
+    if (!result.includes(name)) {
+      result.push(name);
+    }
+  }
+
+  return result;
+}
+
 export default CITIES_BY_STATE;

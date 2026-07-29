@@ -128,11 +128,12 @@ export const FamilyMembersStep = ({ code, familyMembers = [] }) => {
 
       <div className="sticky bottom-0 z-10 -mx-4 mt-4 flex items-center justify-between gap-3 border-t border-border bg-background/95 px-4 py-3 backdrop-blur sm:static sm:mx-0 sm:mt-6 sm:border-0 sm:bg-transparent sm:px-0 sm:py-0 sm:backdrop-blur-none">
         <Button
-          variant="ghost"
+          type="button"
+          variant="outline"
           onClick={() => setActiveStep(PREVIOUS_STEP.key)}
-          className="h-11 gap-1.5 rounded-2xl px-3 text-muted-foreground sm:px-4"
+          className="h-12 gap-2 rounded-2xl border-border/80 bg-background/80 px-5 text-sm font-semibold text-foreground shadow-xs transition-all duration-150 hover:-translate-y-0.5 hover:border-primary/30 hover:bg-accent hover:text-primary focus-visible:ring-2 focus-visible:ring-ring active:translate-y-0 sm:h-[52px] sm:px-6"
         >
-          <ArrowLeft className="size-4" /> Back
+          <ArrowLeft className="size-4 shrink-0 transition-transform duration-150 group-hover:-translate-x-0.5" /> Back
         </Button>
         <div className="hidden sm:block">
           <AutosaveIndicator status={isMutatingFamily ? 'pending' : 'idle'} />

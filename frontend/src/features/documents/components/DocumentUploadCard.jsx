@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { ImageCropDialog } from './ImageCropDialog';
 import { DocumentPreviewDialog } from './DocumentPreviewDialog';
+import { WebcamCaptureDialog } from './WebcamCaptureDialog';
 import { useDocuments } from '../hooks/useDocuments';
 import { useUploadDocument } from '../hooks/useUploadDocument';
 import { useDeleteDocument } from '../hooks/useDeleteDocument';
@@ -28,7 +29,18 @@ export const DocumentUploadCard = ({ type, variant = 'default' }) => {
   const [pendingFile, setPendingFile] = useState(null);
   const [cropSrc, setCropSrc] = useState(null);
   const [cropOpen, setCropOpen] = useState(false);
+  const [webcamOpen, setWebcamOpen] = useState(false);
   const [previewDoc, setPreviewDoc] = useState(null);
+
+  const isMobileDevice = typeof window !== 'undefined' && /Mobi|Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
+  const handleTakePhoto = () => {
+    if (isMobileDevice) {
+      cameraInputRef.current?.click();
+    } else {
+      setWebcamOpen(true);
+    }
+  };
 
   const familyMembers = snapshot?.familyMembers || [];
   const documents = (allDocuments || []).filter((doc) => doc.type === type);
@@ -184,7 +196,9 @@ export const DocumentUploadCard = ({ type, variant = 'default' }) => {
             )}
           </span>
           <div className="flex min-w-0 flex-1 flex-col justify-center gap-0.5">
-            <p className="text-base leading-tight font-semibold text-foreground">Photo</p>
+            <p className="text-base leading-tight font-semibold text-foreground">
+              Profile Photo <span className="text-destructive font-medium ml-0.5">*</span>
+            </p>
             <p className="text-[13px] leading-tight text-muted-foreground">PNG/JPG • Max 2 MB</p>
             {isUploading && (
               <div className="mt-1 flex items-center gap-2">
@@ -214,7 +228,7 @@ export const DocumentUploadCard = ({ type, variant = 'default' }) => {
             <div className="grid grid-cols-2 gap-2">
               <Button
                 variant="outline"
-                onClick={() => cameraInputRef.current?.click()}
+                onClick={handleTakePhoto}
                 className="h-9 w-full justify-center gap-1 rounded-lg text-xs sm:h-10 sm:text-sm"
               >
                 <Camera className="size-3.5" /> {existingDoc ? 'Retake' : 'Take Photo'}
@@ -242,6 +256,19 @@ export const DocumentUploadCard = ({ type, variant = 'default' }) => {
         )}
 
         <ImageCropDialog open={cropOpen} onOpenChange={setCropOpen} imageSrc={cropSrc} onCropped={handleCropped} />
+        <WebcamCaptureDialog
+          open={webcamOpen}
+          onOpenChange={setWebcamOpen}
+          onCaptured={(blob) => {
+            if (type === 'profilePhoto') {
+              setCropSrc(URL.createObjectURL(blob));
+              setCropOpen(true);
+            } else {
+              const file = new File([blob], 'photo.jpg', { type: 'image/jpeg' });
+              startUpload(file);
+            }
+          }}
+        />
         <DocumentPreviewDialog
           open={Boolean(previewDoc)}
           onOpenChange={(open) => !open && setPreviewDoc(null)}

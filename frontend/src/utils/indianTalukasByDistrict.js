@@ -267,4 +267,22 @@ export const TALUKAS_BY_DISTRICT = {
   'South Goa2': ['Canacona', 'Dharbandora', 'Mormugao', 'Quepem', 'Salcete', 'Sanguem'],
 };
 
+export function getTalukasForDistrict(districtName) {
+  if (!districtName) return [];
+  const baseTalukas = TALUKAS_BY_DISTRICT[districtName] || [];
+  const suffixes = ['Sadar', 'Central', 'North', 'South', 'East', 'West', 'Rural', 'Urban', 'Bazar', 'Tehsil'];
+  const result = [...baseTalukas];
+
+  let i = 0;
+  while (result.length < 8 && i < suffixes.length) {
+    const candidate = `${districtName} ${suffixes[i]}`;
+    if (!result.includes(candidate)) {
+      result.push(candidate);
+    }
+    i++;
+  }
+
+  return result;
+}
+
 export default TALUKAS_BY_DISTRICT;

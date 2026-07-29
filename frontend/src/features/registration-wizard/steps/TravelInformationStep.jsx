@@ -87,7 +87,7 @@ export const TravelInformationStep = ({ code, initialData }) => {
       saveStatus={saveMutation.status}
       isSaving={saveMutation.isPending}
     >
-      <WizardField label="Arrival Date" error={form.formState.errors.arrivalDate?.message}>
+      <WizardField label="Arrival Date *" error={form.formState.errors.arrivalDate?.message}>
         <Input
           className="h-14 px-4"
           type="date"
@@ -96,7 +96,7 @@ export const TravelInformationStep = ({ code, initialData }) => {
         />
       </WizardField>
 
-      <WizardField label="Departure Date" error={form.formState.errors.departureDate?.message}>
+      <WizardField label="Departure Date *" error={form.formState.errors.departureDate?.message}>
         <Input
           className="h-14 px-4"
           type="date"
@@ -105,7 +105,7 @@ export const TravelInformationStep = ({ code, initialData }) => {
         />
       </WizardField>
 
-      <WizardField label="Mode of Travel" error={form.formState.errors.mode?.message}>
+      <WizardField label="Mode of Travel *" error={form.formState.errors.mode?.message}>
         <Select
           value={form.watch('mode')}
           onValueChange={(value) =>
@@ -139,7 +139,7 @@ export const TravelInformationStep = ({ code, initialData }) => {
       )}
 
       <WizardField
-        label="Expected Holy Bath Date"
+        label="Expected Holy Bath Date *"
         error={form.formState.errors.holyBathDate?.message}
       >
         <Input

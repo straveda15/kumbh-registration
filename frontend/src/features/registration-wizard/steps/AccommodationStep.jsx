@@ -52,7 +52,7 @@ export const AccommodationStep = ({ code, initialData }) => {
       saveStatus={saveMutation.status}
       isSaving={saveMutation.isPending}
     >
-      <WizardField label="Accommodation Type" error={form.formState.errors.type?.message}>
+      <WizardField label="Accommodation Type *" error={form.formState.errors.type?.message}>
         <Select
           value={form.watch('type')}
           onValueChange={(value) =>

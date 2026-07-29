@@ -319,10 +319,27 @@ export const EditRegistrationPage = () => {
               <Input className="h-12 px-4" {...personalForm.register('aadhaarNumber')} inputMode="numeric" maxLength={12} />
             </WizardField>
             <WizardField label="Mobile Number" error={personalForm.formState.errors.mobile?.message}>
-              <Input className="h-12 px-4" {...personalForm.register('mobile')} inputMode="numeric" />
+              <Input
+                className="h-12 px-4"
+                {...personalForm.register('mobile')}
+                inputMode="numeric"
+                maxLength={10}
+                onInput={(e) => {
+                  e.target.value = e.target.value.replace(/\D/g, '').slice(0, 10);
+                }}
+              />
             </WizardField>
             <WizardField label="Alternate Mobile" error={personalForm.formState.errors.alternateMobile?.message}>
-              <Input className="h-12 px-4" {...personalForm.register('alternateMobile')} inputMode="numeric" placeholder="Optional" />
+              <Input
+                className="h-12 px-4"
+                {...personalForm.register('alternateMobile')}
+                inputMode="numeric"
+                maxLength={10}
+                onInput={(e) => {
+                  e.target.value = e.target.value.replace(/\D/g, '').slice(0, 10);
+                }}
+                placeholder="Optional"
+              />
             </WizardField>
             <WizardField label="Email" error={personalForm.formState.errors.email?.message}>
               <Input className="h-12 px-4" type="email" {...personalForm.register('email')} />
@@ -414,10 +431,27 @@ export const EditRegistrationPage = () => {
               </Select>
             </WizardField>
             <WizardField label="Mobile Number" error={emergencyForm.formState.errors.phone?.message}>
-              <Input className="h-12 px-4" {...emergencyForm.register('phone')} inputMode="numeric" />
+              <Input
+                className="h-12 px-4"
+                {...emergencyForm.register('phone')}
+                inputMode="numeric"
+                maxLength={10}
+                onInput={(e) => {
+                  e.target.value = e.target.value.replace(/\D/g, '').slice(0, 10);
+                }}
+              />
             </WizardField>
             <WizardField label="Alternative Phone" error={emergencyForm.formState.errors.alternativePhone?.message}>
-              <Input className="h-12 px-4" {...emergencyForm.register('alternativePhone')} inputMode="numeric" placeholder="Optional" />
+              <Input
+                className="h-12 px-4"
+                {...emergencyForm.register('alternativePhone')}
+                inputMode="numeric"
+                maxLength={10}
+                onInput={(e) => {
+                  e.target.value = e.target.value.replace(/\D/g, '').slice(0, 10);
+                }}
+                placeholder="Optional"
+              />
             </WizardField>
           </FieldsGrid>
         </CollapsibleSection>

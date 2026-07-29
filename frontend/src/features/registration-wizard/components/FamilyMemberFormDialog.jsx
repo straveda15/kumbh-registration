@@ -19,6 +19,7 @@ import { WizardField } from './WizardField';
 import { familyMemberSchema, familyMemberDefaults } from '@/validators/familyMember.schema';
 import { RELATIONSHIP_OPTIONS } from '@/utils/relationshipOptions';
 import { ImageCropDialog } from '@/features/documents/components/ImageCropDialog';
+import { WebcamCaptureDialog } from '@/features/documents/components/WebcamCaptureDialog';
 import { validateDocumentFile } from '@/validators/document.schema';
 import { useUploadDocument } from '@/features/documents/hooks/useUploadDocument';
 
@@ -28,8 +29,19 @@ export const FamilyMemberFormDialog = ({ open, onOpenChange, initialData, onSubm
 
   const [cropSrc, setCropSrc] = useState(null);
   const [cropOpen, setCropOpen] = useState(false);
+  const [webcamOpen, setWebcamOpen] = useState(false);
   const [submittedAttempt, setSubmittedAttempt] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+
+  const isMobileDevice = typeof window !== 'undefined' && /Mobi|Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
+  const handleTakePhoto = () => {
+    if (isMobileDevice) {
+      cameraInputRef.current?.click();
+    } else {
+      setWebcamOpen(true);
+    }
+  };
 
   const uploadMutation = useUploadDocument();
 
@@ -141,7 +153,9 @@ export const FamilyMemberFormDialog = ({ open, onOpenChange, initialData, onSubm
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           {/* ── Photo Upload Section ── */}
           <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-semibold text-foreground">Profile Photo *</label>
+            <label className="text-sm font-semibold text-foreground">
+              Profile Photo <span className="text-destructive font-medium ml-0.5">*</span>
+            </label>
             <div className="glass-card flex w-full flex-col gap-2 rounded-xl border border-border p-3">
               <div className="flex items-center gap-3">
                 <span className="flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-primary/15 text-primary">
@@ -188,7 +202,7 @@ export const FamilyMemberFormDialog = ({ open, onOpenChange, initialData, onSubm
                   <Button
                     type="button"
                     variant="outline"
-                    onClick={() => cameraInputRef.current?.click()}
+                    onClick={handleTakePhoto}
                     className="h-9 w-full justify-center gap-1 text-xs"
                   >
                     <Camera className="size-3.5" /> {photoUrl ? 'Retake' : 'Take Photo'}
@@ -263,6 +277,9 @@ export const FamilyMemberFormDialog = ({ open, onOpenChange, initialData, onSubm
               {...form.register('aadhaarNumber')}
               inputMode="numeric"
               maxLength={12}
+              onInput={(e) => {
+                e.target.value = e.target.value.replace(/\D/g, '').slice(0, 12);
+              }}
               placeholder="12-digit Aadhaar number"
             />
           </WizardField>
@@ -304,6 +321,14 @@ export const FamilyMemberFormDialog = ({ open, onOpenChange, initialData, onSubm
           onOpenChange={setCropOpen}
           imageSrc={cropSrc}
           onCropped={handleCropped}
+        />
+        <WebcamCaptureDialog
+          open={webcamOpen}
+          onOpenChange={setWebcamOpen}
+          onCaptured={(blob) => {
+            setCropSrc(URL.createObjectURL(blob));
+            setCropOpen(true);
+          }}
         />
       </DialogContent>
     </Dialog>
