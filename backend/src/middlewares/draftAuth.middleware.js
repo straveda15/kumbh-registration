@@ -1,6 +1,7 @@
 import { verifyDraftToken, verifyPilgrimToken } from '../helpers/token.helper.js';
 import { Registration } from '../models/registration.model.js';
 import { User } from '../models/user.model.js';
+import { PersonalInformation } from '../models/personalInformation.model.js';
 import { ApiError } from '../utils/ApiError.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 
