@@ -1,67 +1,71 @@
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
-import logoUrl from '@/assets/Logo.webp';
 
 /**
  * Generates an official, high-resolution Government of Maharashtra Kumbh Registration Pass PDF.
- * Layout architecture:
- * 1. 600px full-width export canvas matching A4 printable aspect ratio
- * 2. Page-level Logo.webp (24px left margin, 24px top margin) spanning full header width
- * 3. 100% mathematically centered Government Header ("महाराष्ट्र शासन" on a single line)
- * 4. Premium Saffron Divider with centered ◈ motif
- * 5. Centered 380px 1:1 Visual Replica Entry Pass Card
- * 6. Footer Saffron Divider with centered ◈ motif & timestamped official footer
- * 7. 185mm Printable PDF Width with ~12.5mm page margins and dynamic single-page A4 scaling
+ * Exact 1:1 replica of the on-screen Registration Pass UI.
  */
 export const generatePassPdf = async (params = {}, filename = 'digital-pass.pdf') => {
-  // Extract data from params
   const pilgrimName = params.pilgrimName || 'Pilgrim';
   const registrationNumber = params.registrationNumber || '';
   const eventName = params.eventName || 'Simhastha Kumbh Mela 2027';
-  const statusLabel = params.statusLabel || 'Submitted';
+  const statusLabel = params.statusLabel || 'Pending';
   const rawVerification = String(params.verificationLabel || 'PENDING').toUpperCase();
-  const accommodation = params.accommodation || '—';
+  const accommodation = params.accommodation || '';
   const qrImage = params.qrImage || null;
   const profilePhotoUrl = params.profilePhotoUrl || null;
   const rejectionReason = params.rejectionReason || null;
   const timestamp = new Date().toLocaleString('en-IN', { dateStyle: 'long', timeStyle: 'short' });
 
-  // Verification status badges
+  // Registration Status badge colors
+  const normStatus = String(statusLabel || '').trim().toLowerCase();
+  const isRegApproved = normStatus === 'approved';
+  const isRegRejected = normStatus === 'rejected';
+
+  let regBadgeBg = '#fef3c7'; // Amber
+  let regBadgeText = '#92400e';
+  if (isRegApproved) {
+    regBadgeBg = '#dcfce7'; // Green
+    regBadgeText = '#166534';
+  } else if (isRegRejected) {
+    regBadgeBg = '#fee2e2'; // Red
+    regBadgeText = '#991b1b';
+  }
+
+  // On-Site Verification badge colors
   let vBadgeBg = '#fef3c7'; // Amber
   let vBadgeText = '#92400e';
-  let vBadgeLabel = 'PENDING';
+  let vBadgeLabel = 'Pending';
   if (rawVerification === 'APPROVED') {
     vBadgeBg = '#dcfce7'; // Green
     vBadgeText = '#166534';
-    vBadgeLabel = 'APPROVED';
+    vBadgeLabel = 'Approved';
   } else if (rawVerification === 'REJECTED') {
     vBadgeBg = '#fee2e2'; // Red
     vBadgeText = '#991b1b';
-    vBadgeLabel = 'REJECTED';
+    vBadgeLabel = 'Rejected';
   }
 
   // Activation Banner setup
-  let bannerBg = '#fee2e2';
-  let bannerBorder = '#fca5a5';
-  let bannerTitleColor = '#991b1b';
+  let bannerBg = '#fef3c7';
+  let bannerBorder = '#fde68a';
+  let bannerTitleColor = '#92400e';
   let bannerTitle = 'ENTRY PASS NOT YET ACTIVATED';
-  let bannerMessage = 'QR Code available after on-site identity verification.';
+  const bannerMessage = 'QR Code will be activated after On-Site Verification approval.';
 
-  if (rawVerification === 'APPROVED') {
+  if (isRegApproved) {
     bannerBg = '#dcfce7';
     bannerBorder = '#86efac';
     bannerTitleColor = '#166534';
     bannerTitle = 'ENTRY PASS ACTIVE';
-    bannerMessage = 'Your QR Code is active and ready for event entry.';
-  } else if (rawVerification === 'REJECTED') {
+  } else if (isRegRejected) {
     bannerBg = '#fee2e2';
     bannerBorder = '#fca5a5';
     bannerTitleColor = '#991b1b';
     bannerTitle = 'ENTRY PASS UNAVAILABLE';
-    bannerMessage = 'Your Entry Pass cannot be activated until verification is successfully completed.';
   }
 
-  // Create isolated iframe for clean rendering without site CSS interference (600px width mapping to A4 printable area)
+  // Create isolated iframe for clean rendering without site CSS interference
   const iframe = document.createElement('iframe');
   iframe.style.position = 'fixed';
   iframe.style.left = '-9999px';
@@ -80,72 +84,59 @@ export const generatePassPdf = async (params = {}, filename = 'digital-pass.pdf'
     <head>
       <meta charset="utf-8">
       <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
-        body { background: #ffffff; margin: 0; padding: 0; width: 600px; }
+        * {
+          box-sizing: border-box;
+          margin: 0;
+          padding: 0;
+          font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+        body {
+          background: #ffffff;
+          margin: 0;
+          padding: 0;
+          width: 600px;
+          color: #0f172a;
+        }
         
         .pdf-page-container {
           background: #ffffff;
-          width: 100%;
-          margin: 0;
-          padding: 0;
+          width: 600px;
+          margin: 0 auto;
+          padding: 24px 20px;
           position: relative;
         }
 
-        /* ── 1. FULL-WIDTH GOVERNMENT HEADER (LOGO AT ABSOLUTE TOP-LEFT) ── */
+        /* ── 1. CENTERED GOVERNMENT HEADER (NO LOGO) ── */
         .gov-header-section {
-          position: relative;
           width: 100%;
-          padding-top: 24px;
-          min-height: 105px;
-        }
-        .gov-logo-left {
-          position: absolute;
-          left: 24px;
-          top: 24px;
-          width: 75px;
-          height: 75px;
-          object-fit: contain;
-          z-index: 10;
-        }
-        .gov-heading-block {
-          width: 100%;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
           text-align: center;
+          margin-bottom: 4px;
         }
         .gov-title-marathi {
-          font-size: 34px;
+          font-size: 28px;
           font-weight: 800;
-          color: #000000;
-          line-height: 1.2;
-          margin-bottom: 6px;
-          letter-spacing: 0.01em;
-          white-space: nowrap;
+          color: #0f172a;
+          line-height: 1.25;
+          margin-bottom: 4px;
+          letter-spacing: 0.14em;
           text-align: center;
-          width: 100%;
         }
         .gov-subtitle-english {
-          font-size: 13.5px;
-          font-weight: 600;
-          color: #4b5563;
-          text-transform: uppercase;
-          letter-spacing: 0.09em;
-          margin-bottom: 8px;
-          white-space: nowrap;
-          text-align: center;
-          width: 100%;
-        }
-        .kumbh-pass-brand {
-          font-size: 12px;
-          font-weight: 800;
+          font-size: 12.5px;
+          font-weight: 700;
           color: #ea580c;
           text-transform: uppercase;
-          letter-spacing: 0.22em;
-          white-space: nowrap;
+          letter-spacing: 0.26em;
+          margin-bottom: 6px;
           text-align: center;
-          width: 100%;
+        }
+        .kumbh-pass-brand {
+          font-size: 11px;
+          font-weight: 800;
+          color: #64748b;
+          text-transform: uppercase;
+          letter-spacing: 0.22em;
+          text-align: center;
         }
 
         /* ── 2. SAFFRON DIVIDER WITH ◈ MOTIF ── */
@@ -154,7 +145,7 @@ export const generatePassPdf = async (params = {}, filename = 'digital-pass.pdf'
           align-items: center;
           justify-content: center;
           width: 82%;
-          margin: 28px auto 28px auto;
+          margin: 20px auto 24px auto;
           position: relative;
         }
         .divider-line {
@@ -165,7 +156,7 @@ export const generatePassPdf = async (params = {}, filename = 'digital-pass.pdf'
         .divider-motif {
           padding: 0 14px;
           color: #ea580c;
-          font-size: 15px;
+          font-size: 14px;
           font-weight: bold;
           background: #ffffff;
           line-height: 1;
@@ -176,14 +167,14 @@ export const generatePassPdf = async (params = {}, filename = 'digital-pass.pdf'
           width: 380px;
           margin: 0 auto;
           border: 1px solid #cbd5e1;
-          border-radius: 20px;
+          border-radius: 16px;
           overflow: hidden;
           background: #ffffff;
-          box-shadow: 0 10px 25px -5px rgba(0,0,0,0.08);
+          box-shadow: 0 8px 20px -4px rgba(0,0,0,0.06);
         }
         .card-header-strip {
           background: #ffedd5;
-          padding: 10px 16px;
+          padding: 8px 16px;
           text-align: center;
         }
         .card-header-title {
@@ -193,75 +184,208 @@ export const generatePassPdf = async (params = {}, filename = 'digital-pass.pdf'
           color: #ea580c;
           text-transform: uppercase;
         }
-        .card-body { padding: 16px; text-align: center; }
-        .hero { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; margin-bottom: 14px; }
-        .avatar-box {
-          width: 56px; height: 56px; border-radius: 50%; background: #f1f5f9;
-          border: 2px solid #cbd5e1; display: flex; align-items: center; justify-content: center;
-          overflow: hidden; margin: 0 auto;
+        .card-body {
+          padding: 16px 16px 12px 16px;
+          text-align: center;
         }
-        .avatar-img { width: 100%; height: 100%; object-fit: cover; }
-        .pilgrim-name { font-size: 16.5px; font-weight: 700; color: #0f172a; text-align: center; }
+        .hero {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          margin-bottom: 12px;
+        }
+        .avatar-box {
+          width: 56px;
+          height: 56px;
+          border-radius: 50%;
+          background: #f1f5f9;
+          border: 2px solid #cbd5e1;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          overflow: hidden;
+          margin: 0 auto;
+        }
+        .avatar-img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+        }
+        .pilgrim-name {
+          font-size: 15px;
+          font-weight: 600;
+          color: #0f172a;
+          text-align: center;
+        }
 
-        .divider-inner { height: 1px; background: #e2e8f0; margin: 12px 0; }
+        .divider-inner {
+          height: 1px;
+          background: #e2e8f0;
+          margin: 12px 0;
+        }
 
         /* ── QR SECTION ── */
-        .qr-container { display: flex; justify-content: center; align-items: center; padding: 10px; }
-        .qr-img { width: 160px; height: 160px; border-radius: 12px; padding: 8px; background: #ffffff; border: 1px solid #e2e8f0; }
-        .locked-qr {
-          width: 160px; height: 160px; border-radius: 12px; background: #f8fafc;
-          border: 1px solid #cbd5e1; display: flex; flex-direction: column; align-items: center;
-          justify-content: center; gap: 8px; margin: 0 auto;
+        .qr-container {
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          padding: 8px;
+          margin-bottom: 8px;
         }
-        .lock-icon { width: 36px; height: 36px; border-radius: 50%; background: #ffedd5; color: #ea580c; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: bold; }
-        .protected-text { font-size: 9px; font-weight: 700; color: #64748b; letter-spacing: 0.15em; text-transform: uppercase; }
+        .qr-img {
+          width: 160px;
+          height: 160px;
+          border-radius: 12px;
+          padding: 8px;
+          background: #ffffff;
+          border: 1px solid #e2e8f0;
+          box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+        .locked-qr {
+          width: 160px;
+          height: 160px;
+          border-radius: 12px;
+          background: #f8fafc;
+          border: 1px solid #cbd5e1;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          margin: 0 auto;
+        }
+        .lock-icon {
+          width: 36px;
+          height: 36px;
+          border-radius: 50%;
+          background: #ffedd5;
+          color: #ea580c;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 16px;
+          font-weight: bold;
+        }
+        .protected-text {
+          font-size: 9px;
+          font-weight: 700;
+          color: #64748b;
+          letter-spacing: 0.15em;
+          text-transform: uppercase;
+        }
 
-        /* ── INFO ROWS (UNIFORM 40px HEIGHT & ALIGNED BADGES) ── */
-        .rows { display: flex; flex-direction: column; border-top: 1px solid #f1f5f9; margin-top: 8px; }
-        .row { display: flex; justify-content: space-between; align-items: center; height: 40px; padding: 0 16px; border-bottom: 1px solid #f1f5f9; }
-        .row-label { font-size: 12px; color: #64748b; text-align: left; }
-        .row-value { font-size: 12px; font-weight: 600; color: #0f172a; text-align: right; }
-        .badge { font-size: 10.5px; font-weight: 600; padding: 0 12px; height: 26px; border-radius: 9999px; display: inline-flex; align-items: center; justify-content: center; line-height: 1; }
+        /* ── INFO ROWS ── */
+        .rows {
+          display: flex;
+          flex-direction: column;
+          border-top: 1px solid #f1f5f9;
+        }
+        .row {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          height: 36px;
+          padding: 0 14px;
+          border-bottom: 1px solid #f1f5f9;
+        }
+        .row-label {
+          font-size: 12px;
+          color: #64748b;
+          text-align: left;
+        }
+        .row-value {
+          font-size: 12px;
+          font-weight: 500;
+          color: #0f172a;
+          text-align: right;
+        }
+        .badge {
+          font-size: 10.5px;
+          font-weight: 600;
+          padding: 3px 10px;
+          border-radius: 9999px;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          line-height: 1;
+        }
 
         /* ── ACTIVATION BANNER ── */
         .activation-banner {
           background: ${bannerBg};
           border-top: 1px solid ${bannerBorder};
-          padding: 12px 16px;
+          padding: 10px 14px;
           text-align: center;
-          margin-top: 4px;
         }
-        .banner-title { font-size: 10px; font-weight: 800; letter-spacing: 0.14em; color: ${bannerTitleColor}; text-transform: uppercase; margin-bottom: 4px; text-align: center; }
-        .banner-msg { font-size: 9.5px; color: #475569; display: flex; align-items: center; justify-content: center; gap: 5px; text-align: center; }
+        .banner-title {
+          font-size: 10px;
+          font-weight: 800;
+          letter-spacing: 0.14em;
+          color: ${bannerTitleColor};
+          text-transform: uppercase;
+          margin-bottom: 3px;
+          text-align: center;
+        }
+        .banner-msg {
+          font-size: 9.5px;
+          color: #475569;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 4px;
+          text-align: center;
+          white-space: nowrap;
+        }
 
-        /* ── 4 & 5. FOOTER DIVIDER & OFFICIAL FOOTER ── */
+        /* ── FOOTER DIVIDER & OFFICIAL FOOTER ── */
         .footer-divider-container {
           display: flex;
           align-items: center;
           justify-content: center;
           width: 82%;
-          margin: 24px auto 16px auto;
+          margin: 20px auto 14px auto;
           position: relative;
         }
         .gov-footer-section {
           text-align: center;
-          padding: 0 16px 16px 16px;
+          padding: 0 16px 12px 16px;
         }
-        .footer-notice { font-size: 9.5px; color: #475569; margin-bottom: 6px; }
-        .footer-time { font-size: 9px; color: #64748b; font-family: monospace; margin-bottom: 6px; }
-        .footer-system { font-size: 9.5px; font-weight: 600; color: #1e293b; text-transform: uppercase; letter-spacing: 0.06em; }
+        .footer-notice {
+          font-size: 9.5px;
+          color: #475569;
+          margin-bottom: 4px;
+        }
+        .footer-time {
+          font-size: 9px;
+          color: #64748b;
+          font-family: monospace;
+          margin-bottom: 4px;
+        }
+        .footer-system {
+          font-size: 9.5px;
+          font-weight: 600;
+          color: #1e293b;
+          text-transform: uppercase;
+          letter-spacing: 0.06em;
+          margin-bottom: 6px;
+        }
+        .footer-demo {
+          font-size: 9px;
+          font-weight: 500;
+          color: #64748b;
+          text-align: center;
+        }
       </style>
     </head>
     <body>
       <div class="pdf-page-container">
-        <!-- 1. FULL-WIDTH GOVERNMENT HEADER (LOGO AT ABSOLUTE PAGE TOP-LEFT) -->
+        <!-- 1. FULL-WIDTH CENTERED GOVERNMENT HEADER -->
         <div class="gov-header-section">
-          <img src="${logoUrl}" class="gov-logo-left" alt="Government of Maharashtra" />
-          <div class="gov-heading-block">
-            <div class="gov-title-marathi">महाराष्ट्र शासन</div>
-            <div class="gov-subtitle-english">Government of Maharashtra</div>
-            <div class="kumbh-pass-brand">Kumbh Registration Pass</div>
-          </div>
+          <div class="gov-title-marathi">महाराष्ट्र शासन</div>
+          <div class="gov-subtitle-english">Government of Maharashtra</div>
+          <div class="kumbh-pass-brand">Kumbh Registration Pass</div>
         </div>
 
         <!-- 2. SAFFRON DIVIDER WITH ◈ MOTIF -->
@@ -288,7 +412,7 @@ export const generatePassPdf = async (params = {}, filename = 'digital-pass.pdf'
 
             <!-- QR SECTION -->
             <div class="qr-container">
-              ${qrImage ? `<img src="${qrImage}" class="qr-img" />` : `
+              ${rawVerification === 'APPROVED' && qrImage ? `<img src="${qrImage}" class="qr-img" />` : `
                 <div class="locked-qr">
                   <div class="lock-icon">🔒</div>
                   <div class="protected-text">Protected</div>
@@ -310,16 +434,18 @@ export const generatePassPdf = async (params = {}, filename = 'digital-pass.pdf'
               </div>
               <div class="row">
                 <span class="row-label">Registration Status</span>
-                <span class="badge" style="background:#e0f2fe;color:#0369a1;">${statusLabel}</span>
+                <span class="badge" style="background:${regBadgeBg};color:${regBadgeText};">${statusLabel}</span>
               </div>
               <div class="row">
-                <span class="row-label">Verification</span>
+                <span class="row-label">On-Site Verification</span>
                 <span class="badge" style="background:${vBadgeBg};color:${vBadgeText};">${vBadgeLabel}</span>
               </div>
-              <div class="row">
-                <span class="row-label">Accommodation</span>
-                <span class="row-value">${accommodation}</span>
-              </div>
+              ${accommodation ? `
+                <div class="row">
+                  <span class="row-label">Accommodation</span>
+                  <span class="row-value">${accommodation}</span>
+                </div>
+              ` : ''}
             </div>
           </div>
 
@@ -343,6 +469,7 @@ export const generatePassPdf = async (params = {}, filename = 'digital-pass.pdf'
           <div class="footer-notice">Please carry this Entry Pass together with a valid Government-issued Photo ID.</div>
           <div class="footer-time">Generated on: ${timestamp}</div>
           <div class="footer-system">Government of Maharashtra • Kumbh Registration System</div>
+          <div class="footer-demo">For Demo Purpose Only</div>
         </div>
       </div>
     </body>
@@ -351,7 +478,7 @@ export const generatePassPdf = async (params = {}, filename = 'digital-pass.pdf'
   doc.close();
 
   // Ensure image and font loading inside iframe
-  await new Promise((resolve) => setTimeout(resolve, 200));
+  await new Promise((resolve) => setTimeout(resolve, 250));
 
   try {
     const targetNode = doc.body.querySelector('.pdf-page-container');
@@ -375,7 +502,6 @@ export const generatePassPdf = async (params = {}, filename = 'digital-pass.pdf'
     let imgWidth = maxCanvasWidth;
     let imgHeight = (canvas.height * imgWidth) / canvas.width;
 
-    // Dynamically scale down proportionally if rendered height exceeds available A4 single page height
     if (imgHeight > maxCanvasHeight) {
       imgHeight = maxCanvasHeight;
       imgWidth = (canvas.width * imgHeight) / canvas.height;
@@ -387,7 +513,9 @@ export const generatePassPdf = async (params = {}, filename = 'digital-pass.pdf'
     pdf.addImage(imgData, 'PNG', x, y, imgWidth, imgHeight, undefined, 'FAST');
     pdf.save(filename);
   } finally {
-    document.body.removeChild(iframe);
+    if (iframe.parentNode) {
+      document.body.removeChild(iframe);
+    }
   }
 };
 

@@ -14,7 +14,7 @@ export const REGISTRATION_STATUS_META = {
 export const getRegistrationStatusMeta = (status) => {
   const key = typeof status === 'string' ? status.toLowerCase() : status;
   if (key === 'submitted' || key === 'pending') {
-    return { label: 'Pending Verification', badgeVariant: 'warning' };
+    return { label: 'Pending', badgeVariant: 'warning' };
   }
   if (key === 'approved') {
     return { label: 'Approved', badgeVariant: 'success' };
@@ -22,7 +22,7 @@ export const getRegistrationStatusMeta = (status) => {
   if (key === 'rejected') {
     return { label: 'Rejected', badgeVariant: 'destructive' };
   }
-  return REGISTRATION_STATUS_META[key] ?? { label: status ? String(status) : 'Unknown', badgeVariant: 'outline' };
+  return REGISTRATION_STATUS_META[key] ?? { label: status ? String(status) : 'Pending', badgeVariant: 'warning' };
 };
 
 export default REGISTRATION_STATUS_META;
