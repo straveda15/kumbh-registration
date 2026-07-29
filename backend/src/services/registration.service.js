@@ -93,7 +93,65 @@ const buildWizardProgress = (registration) => {
 };
 
 export const startRegistration = async ({ code }, meta = {}) => {
-  const qr = await qrService.validateQRForRegistration(code);
+  const cleanCode = (code || '').trim();
+  console.log('[QR LOOKUP DEBUG] Decoded QR payload / Incoming request code:', cleanCode);
+
+  // 1. Check if cleanCode matches an existing registration record (by registrationNumber, pilgrimId, _id, userId, or DigitalPass qrCode)
+  if (cleanCode) {
+    const isMongoId = mongoose.Types.ObjectId.isValid(cleanCode);
+    const upperCode = cleanCode.toUpperCase();
+
+    const queryConditions = [
+      { registrationNumber: upperCode },
+      { pilgrimId: upperCode },
+    ];
+    if (isMongoId) {
+      queryConditions.push({ _id: cleanCode });
+      queryConditions.push({ userId: cleanCode });
+    }
+
+    const passDoc = await DigitalPass.findOne({
+      $or: [{ qrCode: cleanCode }, ...(isMongoId ? [{ _id: cleanCode }] : [])],
+    });
+    if (passDoc) {
+      queryConditions.push({ _id: passDoc.registrationId });
+      queryConditions.push({ digitalPassId: passDoc._id });
+    }
+
+    console.log('[QR LOOKUP DEBUG] Database query being executed:', JSON.stringify(queryConditions));
+    const existingReg = await Registration.findOne({ $or: queryConditions }).sort({ createdAt: -1 });
+    console.log(
+      '[QR LOOKUP DEBUG] Database query result:',
+      existingReg ? `Found registration ID ${existingReg._id} (${existingReg.registrationNumber || 'Draft'})` : 'No existing registration matched'
+    );
+
+    if (existingReg) {
+      const draftToken = signDraftToken({
+        registrationId: existingReg._id.toString(),
+        userId: existingReg.userId.toString(),
+        eventId: existingReg.eventId.toString(),
+      });
+      return { draftToken, ...buildWizardProgress(existingReg) };
+    }
+  }
+
+  // 2. If no existing registration matched, validate code as an event QR code to start new draft
+  let qr = null;
+  try {
+    qr = await qrService.validateQRForRegistration(cleanCode);
+  } catch (qrErr) {
+    console.log('[QR LOOKUP DEBUG] Event QR validation failed for code:', cleanCode, 'Error:', qrErr.message);
+  }
+
+  if (!qr) {
+    console.log(
+      '[QR LOOKUP DEBUG] Exact reason why "No registration found" is returned: Code "' +
+        cleanCode +
+        '" did not match any existing Registration (by registrationNumber, pilgrimId, _id, userId, digitalPass) AND did not match any active Event QR code.'
+    );
+    throw ApiError.notFound(`No registration found for code: ${cleanCode}`);
+  }
+
   const event = qr.eventId;
 
   if (event.status !== EVENT_STATUS.ACTIVE) {
@@ -357,7 +415,9 @@ export const assembleRegistrationDetail = async (registration) => {
     TravelInformation.findOne({ registrationId: registration._id }),
     Accommodation.findOne({ registrationId: registration._id }),
     FamilyMember.find({ registrationId: registration._id }).sort({ createdAt: 1 }),
-    registration.digitalPassId ? DigitalPass.findById(registration.digitalPassId) : null,
+    registration.digitalPassId
+      ? DigitalPass.findById(registration.digitalPassId)
+      : DigitalPass.findOne({ registrationId: registration._id }),
     // Read-only, public-safe event summary — the citizen's own dashboard
     // has no other way to know which event they registered for.
     Event.findById(registration.eventId).select('name startDate endDate venue status'),
@@ -402,19 +462,41 @@ export const getEffectiveVerificationStatus = (digitalPass, registrationStatus) 
 export const getDraft = async (registration) => {
   const { pilgrimId: _pilgrimId, ...progress } = buildWizardProgress(registration);
   const detail = await assembleRegistrationDetail(registration);
-  const passActivated = await isPassActivated(detail.digitalPass?._id);
-  const verificationStatus = getEffectiveVerificationStatus(detail.digitalPass, registration.registrationStatus);
+
+  const isSubmitted =
+    registration.registrationStatus && registration.registrationStatus !== REGISTRATION_STATUS.DRAFT;
+
+  let digitalPass = detail.digitalPass;
+  if (!digitalPass && isSubmitted) {
+    digitalPass = await DigitalPass.findOne({ registrationId: registration._id });
+  }
+
+  const passActivated = await isPassActivated(digitalPass?._id);
+  const verificationStatus = getEffectiveVerificationStatus(digitalPass, registration.registrationStatus);
+
+  const finalDigitalPass = isSubmitted
+    ? {
+        ...(digitalPass ? digitalPass.toObject() : {}),
+        passNumber: digitalPass?.passNumber || registration.registrationNumber,
+        verificationStatus,
+        qrCode: passActivated ? digitalPass?.qrCode : null,
+        qrImage: passActivated ? digitalPass?.qrImage : null,
+        passActivated,
+      }
+    : digitalPass
+    ? {
+        ...digitalPass.toObject(),
+        verificationStatus,
+        qrCode: passActivated ? digitalPass.qrCode : null,
+        qrImage: passActivated ? digitalPass.qrImage : null,
+        passActivated,
+      }
+    : null;
 
   return {
     ...progress,
     ...detail,
-    digitalPass: detail.digitalPass && {
-      ...detail.digitalPass.toObject(),
-      verificationStatus,
-      qrCode: passActivated ? detail.digitalPass.qrCode : null,
-      qrImage: passActivated ? detail.digitalPass.qrImage : null,
-      passActivated,
-    },
+    digitalPass: finalDigitalPass,
   };
 };
 

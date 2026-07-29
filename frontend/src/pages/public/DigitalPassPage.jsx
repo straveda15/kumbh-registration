@@ -46,6 +46,12 @@ export const DigitalPassPage = () => {
   }
 
   const digitalPass = snapshot?.digitalPass;
+  const registrationStatus = snapshot?.registrationStatus;
+  const isSubmitted = Boolean(
+    snapshot?.registrationNumber ||
+      (registrationStatus && String(registrationStatus).toLowerCase() !== 'draft')
+  );
+
   const profilePhoto = (documents || []).find((doc) => doc.type === 'profilePhoto');
   const rejectionReason = snapshot?.rejectionReason || snapshot?.statusNote;
 
@@ -68,7 +74,7 @@ export const DigitalPassPage = () => {
   };
 
   const handleDownload = async () => {
-    if (!digitalPass) return;
+    const passData = digitalPass || { verificationStatus: 'PENDING' };
     setIsGeneratingPdf(true);
     try {
       await generatePassPdf(
@@ -78,9 +84,9 @@ export const DigitalPassPage = () => {
           hideRegistrationNumber: true,
           eventName: snapshot?.event?.name,
           statusLabel: getRegistrationStatusMeta(snapshot?.registrationStatus).label,
-          verificationLabel: digitalPass.verificationStatus || 'PENDING',
+          verificationLabel: passData.verificationStatus || 'PENDING',
           accommodation: snapshot?.accommodation?.data?.address || snapshot?.accommodation?.data?.type,
-          qrImage: digitalPass.qrImage,
+          qrImage: passData.qrImage,
           profilePhotoUrl: profilePhoto?.url,
           rejectionReason,
         },
@@ -96,7 +102,7 @@ export const DigitalPassPage = () => {
   return (
     <div className="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center gap-4 px-4 py-6">
       {/* ── Pass card ── */}
-      {!digitalPass ? (
+      {!isSubmitted ? (
         <div className="glass-card flex flex-col items-center gap-3 rounded-2xl px-8 py-10 text-center">
           <p className="text-sm text-muted-foreground">
             Your digital pass will be generated once your registration is submitted.
@@ -106,7 +112,7 @@ export const DigitalPassPage = () => {
         <>
           {/* On-screen Entry Pass (100% UNCHANGED) */}
           <DigitalPassCard
-            digitalPass={digitalPass}
+            digitalPass={digitalPass || { verificationStatus: 'PENDING' }}
             personal={snapshot?.personalInformation?.data}
             accommodation={snapshot?.accommodation?.data}
             registrationStatus={snapshot?.registrationStatus}
