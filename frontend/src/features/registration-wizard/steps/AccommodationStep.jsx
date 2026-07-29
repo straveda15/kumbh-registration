@@ -72,8 +72,25 @@ export const AccommodationStep = ({ code, initialData }) => {
         </Select>
       </WizardField>
 
-      <WizardField label="Accommodation Address" error={form.formState.errors.address?.message}>
+      <WizardField label="Accommodation Address *" error={form.formState.errors.address?.message}>
         <Input className="h-14 px-4" {...form.register('address')} placeholder="Where you'll be staying" />
+      </WizardField>
+
+      <WizardField label="Expected Arrival Date" error={form.formState.errors.expectedArrivalDate?.message}>
+        <Input
+          className="h-14 px-4"
+          type="date"
+          {...form.register('expectedArrivalDate')}
+        />
+      </WizardField>
+
+      <WizardField label="Expected Departure Date" error={form.formState.errors.expectedDepartureDate?.message}>
+        <Input
+          className="h-14 px-4"
+          type="date"
+          min={form.watch('expectedArrivalDate') || undefined}
+          {...form.register('expectedDepartureDate')}
+        />
       </WizardField>
     </WizardStepShell>
   );

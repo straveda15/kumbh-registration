@@ -30,7 +30,11 @@ import {
 import { INDIAN_STATES_AND_UTS } from '@/utils/indianStates';
 import { getVillagesForTaluka } from '@/utils/indianCitiesByState';
 import { DISTRICTS_BY_STATE } from '@/utils/indianDistrictsByState';
-import { getTalukasForDistrict } from '@/utils/indianTalukasByDistrict';
+import {
+  getAvailableDistricts,
+  getAvailableTalukas,
+  getAvailableCities,
+} from '@/utils/indianLocationLookup';
 import { computeAge } from '@/utils/computeAge';
 import { useWizardUiStore } from '@/store/useWizardUiStore';
 import { useWizardLiveDraftStore } from '@/store/useWizardLiveDraftStore';
@@ -91,19 +95,17 @@ export const PersonalInformationStep = ({ code, initialData }) => {
   const selectedState = form.watch('state');
   const selectedDistrict = form.watch('district');
   const selectedTaluka = form.watch('taluka');
+  const selectedCity = form.watch('village');
 
-  // Cascading options
-  const districtOptions = selectedState
-    ? (DISTRICTS_BY_STATE[selectedState] || []).map((d) => ({ value: d, label: d }))
-    : EMPTY_OPTIONS;
+  // Dynamic location options
+  const districtList = getAvailableDistricts(selectedState, selectedCity);
+  const districtOptions = districtList.map((d) => ({ value: d, label: d }));
 
-  const talukaOptions = selectedDistrict
-    ? getTalukasForDistrict(selectedDistrict).map((t) => ({ value: t, label: t }))
-    : EMPTY_OPTIONS;
+  const talukaList = getAvailableTalukas(selectedState, selectedDistrict, selectedCity);
+  const talukaOptions = talukaList.map((t) => ({ value: t, label: t }));
 
-  const villageOptions = selectedTaluka
-    ? getVillagesForTaluka(selectedTaluka, selectedDistrict).map((v) => ({ value: v, label: v }))
-    : EMPTY_OPTIONS;
+  const cityList = getAvailableCities(selectedState, selectedDistrict, selectedTaluka);
+  const villageOptions = cityList.map((c) => ({ value: c, label: c }));
 
   // Check whether a profile photo has been uploaded.
   const profilePhotoDoc = (allDocuments || []).find((doc) => doc.type === 'profilePhoto');
@@ -323,14 +325,12 @@ export const PersonalInformationStep = ({ code, initialData }) => {
                 options={districtOptions}
                 value={selectedDistrict}
                 onValueChange={(value) => {
-                  form.setValue('district', value, { shouldValidate: true, shouldDirty: true });
-                  // Reset dependent fields whenever district changes.
-                  form.setValue('taluka', '', { shouldValidate: false, shouldDirty: true });
-                  form.setValue('village', '', { shouldValidate: false, shouldDirty: true });
+                  form.setValue('district', value, { shouldValidate: false, shouldDirty: true });
                 }}
-                placeholder={selectedState ? 'Select District' : 'Select State first'}
+                placeholder={selectedState ? 'Select District (Optional)' : 'Select State first'}
                 searchPlaceholder="Search districts…"
                 emptyText="No matching district."
+                allowCustomValue
                 disabled={!selectedState}
               />
             </Field>
@@ -341,15 +341,13 @@ export const PersonalInformationStep = ({ code, initialData }) => {
                 options={talukaOptions}
                 value={selectedTaluka}
                 onValueChange={(value) => {
-                  form.setValue('taluka', value, { shouldValidate: true, shouldDirty: true });
-                  // Reset village whenever taluka changes.
-                  form.setValue('village', '', { shouldValidate: false, shouldDirty: true });
+                  form.setValue('taluka', value, { shouldValidate: false, shouldDirty: true });
                 }}
-                placeholder={selectedDistrict ? 'Select Taluka' : selectedState ? 'Select District first' : 'Select State first'}
+                placeholder={selectedState ? 'Select Taluka (Optional)' : 'Select State first'}
                 searchPlaceholder="Search talukas…"
                 emptyText="No matching taluka."
                 allowCustomValue
-                disabled={!selectedDistrict}
+                disabled={!selectedState}
               />
             </Field>
 
@@ -361,11 +359,11 @@ export const PersonalInformationStep = ({ code, initialData }) => {
                 onValueChange={(value) =>
                   form.setValue('village', value, { shouldValidate: true, shouldDirty: true })
                 }
-                placeholder={selectedTaluka ? 'Select Village / Town' : selectedDistrict ? 'Select Taluka first' : selectedState ? 'Select District first' : 'Select State first'}
+                placeholder={selectedState ? 'Select Village / Town / City' : 'Select State first'}
                 searchPlaceholder="Search village or town…"
                 emptyText="No matching village — pick 'Use' below to enter as typed."
                 allowCustomValue
-                disabled={!selectedTaluka}
+                disabled={!selectedState}
               />
             </Field>
 
