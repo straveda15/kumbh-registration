@@ -1,5 +1,6 @@
 export const DOCUMENT_TYPE = Object.freeze({
   PROFILE_PHOTO: 'profilePhoto',
+  FAMILY_MEMBER_PHOTO: 'familyMemberPhoto',
   GOVERNMENT_ID: 'governmentId',
   MEDICAL_REPORT: 'medicalReport',
   OTHER: 'other',

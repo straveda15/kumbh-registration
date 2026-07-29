@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { MultiSelectDropdown } from '@/components/ui/multi-select-dropdown';
 import { WizardStepShell } from '../components/WizardStepShell';
 import { WizardField } from '../components/WizardField';
 import { useSaveWizardStep } from '../hooks/useSaveWizardStep';
@@ -14,6 +15,8 @@ import {
   medicalInformationSchema,
   medicalInformationDefaults,
   BLOOD_GROUPS,
+  MEDICAL_CONDITIONS_OPTIONS,
+  MEDICAL_ALLERGIES_OPTIONS,
 } from '@/validators/medicalInformation.schema';
 import { useWizardLiveDraftStore } from '@/store/useWizardLiveDraftStore';
 import { WIZARD_STEP_META } from '@/utils/wizardSteps';
@@ -25,9 +28,27 @@ export const MedicalInformationStep = ({ code, initialData }) => {
   const saveMutation = useSaveWizardStep(code, saveMedicalInformation);
   const setLiveSection = useWizardLiveDraftStore((state) => state.setLiveSection);
 
+  // Normalize initial values if stored as legacy strings
+  const parsedConditions = Array.isArray(initialData?.medicalConditions)
+    ? initialData.medicalConditions
+    : initialData?.medicalConditions
+    ? [initialData.medicalConditions]
+    : [];
+
+  const parsedAllergies = Array.isArray(initialData?.allergies)
+    ? initialData.allergies
+    : initialData?.allergies
+    ? [initialData.allergies]
+    : [];
+
   const form = useForm({
     resolver: zodResolver(medicalInformationSchema),
-    defaultValues: { ...medicalInformationDefaults, ...initialData },
+    defaultValues: {
+      ...medicalInformationDefaults,
+      ...initialData,
+      medicalConditions: parsedConditions,
+      allergies: parsedAllergies,
+    },
     mode: 'onBlur',
   });
 
@@ -36,6 +57,9 @@ export const MedicalInformationStep = ({ code, initialData }) => {
     return () => subscription.unsubscribe();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const selectedConditions = form.watch('medicalConditions') || [];
+  const selectedAllergies = form.watch('allergies') || [];
 
   const persist = async () => {
     const isValid = await form.trigger();
@@ -82,18 +106,41 @@ export const MedicalInformationStep = ({ code, initialData }) => {
         </Select>
       </WizardField>
 
-      <WizardField label="Doctor Name" error={form.formState.errors.doctorName?.message}>
+      <WizardField label="Family Doctor Name" error={form.formState.errors.doctorName?.message}>
         <Input className="h-14 px-4" {...form.register('doctorName')} placeholder="Optional" />
       </WizardField>
 
+      {/* ── Medical Conditions ── */}
       <WizardField
         label="Medical Conditions"
         className="col-span-full"
         error={form.formState.errors.medicalConditions?.message}
       >
-        <Textarea className="px-4 py-3" {...form.register('medicalConditions')} placeholder="Optional" rows={2} />
+        <MultiSelectDropdown
+          options={MEDICAL_CONDITIONS_OPTIONS}
+          value={selectedConditions}
+          onChange={(newVal) =>
+            form.setValue('medicalConditions', newVal, { shouldValidate: true, shouldDirty: true })
+          }
+          placeholder="Select medical conditions (or None)..."
+        />
       </WizardField>
 
+      {selectedConditions.includes('Other') && (
+        <WizardField
+          label="Please specify"
+          className="col-span-full"
+          error={form.formState.errors.medicalConditionsOther?.message}
+        >
+          <Input
+            className="h-14 px-4"
+            {...form.register('medicalConditionsOther')}
+            placeholder="Specify medical conditions"
+          />
+        </WizardField>
+      )}
+
+      {/* ── Current Medicines ── */}
       <WizardField
         label="Current Medicines"
         className="col-span-full"
@@ -102,14 +149,37 @@ export const MedicalInformationStep = ({ code, initialData }) => {
         <Textarea className="px-4 py-3" {...form.register('currentMedicines')} placeholder="Optional" rows={2} />
       </WizardField>
 
+      {/* ── Medical Allergies ── */}
       <WizardField
         label="Medical Allergies"
         className="col-span-full"
         error={form.formState.errors.allergies?.message}
       >
-        <Textarea className="px-4 py-3" {...form.register('allergies')} placeholder="Optional" rows={2} />
+        <MultiSelectDropdown
+          options={MEDICAL_ALLERGIES_OPTIONS}
+          value={selectedAllergies}
+          onChange={(newVal) =>
+            form.setValue('allergies', newVal, { shouldValidate: true, shouldDirty: true })
+          }
+          placeholder="Select allergies (or None)..."
+        />
       </WizardField>
 
+      {selectedAllergies.includes('Other') && (
+        <WizardField
+          label="Please specify"
+          className="col-span-full"
+          error={form.formState.errors.allergiesOther?.message}
+        >
+          <Input
+            className="h-14 px-4"
+            {...form.register('allergiesOther')}
+            placeholder="Specify medical allergies"
+          />
+        </WizardField>
+      )}
+
+      {/* ── Emergency Notes ── */}
       <WizardField
         label="Emergency Notes"
         className="col-span-full"

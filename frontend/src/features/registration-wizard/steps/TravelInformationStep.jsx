@@ -21,9 +21,6 @@ import { WIZARD_STEP_META } from '@/utils/wizardSteps';
 const PREVIOUS_STEP = WIZARD_STEP_META[2]; // Medical Information
 const NEXT_STEP = WIZARD_STEP_META[4]; // Accommodation
 
-// Local (not UTC) YYYY-MM-DD, matching what <input type="date"> both
-// expects and produces — toISOString() would shift near midnight in
-// timezones ahead of UTC.
 const toDateInputValue = (date) => {
   const pad = (n) => String(n).padStart(2, '0');
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
@@ -47,10 +44,23 @@ export const TravelInformationStep = ({ code, initialData }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Departure's floor tracks whatever arrival is currently set to — arrival
-  // itself can never go earlier than tomorrow (MIN_ARRIVAL_DATE).
   const arrivalValue = form.watch('arrivalDate');
+  const departureValue = form.watch('departureDate');
+  const holyBathValue = form.watch('holyBathDate');
   const minDepartureDate = arrivalValue || MIN_ARRIVAL_DATE;
+
+  // Auto-clear Holy Bath Date if Arrival or Departure changes and out of range
+  useEffect(() => {
+    if (holyBathValue) {
+      if (arrivalValue && holyBathValue < arrivalValue) {
+        form.setValue('holyBathDate', '', { shouldValidate: true });
+        toast.info('Expected Holy Bath Date cleared as it is before your new Arrival Date. Please select a new date.');
+      } else if (departureValue && holyBathValue > departureValue) {
+        form.setValue('holyBathDate', '', { shouldValidate: true });
+        toast.info('Expected Holy Bath Date cleared as it is after your new Departure Date. Please select a new date.');
+      }
+    }
+  }, [arrivalValue, departureValue, holyBathValue, form]);
 
   const persist = async () => {
     const isValid = await form.trigger();
@@ -115,11 +125,30 @@ export const TravelInformationStep = ({ code, initialData }) => {
         </Select>
       </WizardField>
 
+      {form.watch('mode') === 'Other' && (
+        <WizardField
+          label="Please specify your mode of travel"
+          error={form.formState.errors.travelModeOther?.message}
+        >
+          <Input
+            className="h-14 px-4"
+            {...form.register('travelModeOther')}
+            placeholder="Specify mode of travel"
+          />
+        </WizardField>
+      )}
+
       <WizardField
         label="Expected Holy Bath Date"
         error={form.formState.errors.holyBathDate?.message}
       >
-        <Input className="h-14 px-4" type="date" {...form.register('holyBathDate')} />
+        <Input
+          className="h-14 px-4"
+          type="date"
+          min={arrivalValue || MIN_ARRIVAL_DATE}
+          max={departureValue || undefined}
+          {...form.register('holyBathDate')}
+        />
       </WizardField>
 
       {form.watch('mode') === 'Private Vehicle' && (

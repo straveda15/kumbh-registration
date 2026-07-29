@@ -7,11 +7,9 @@ export const TRAVEL_MODES = [
   'Private Vehicle',
   'Flight',
   'Walking Group',
+  'Other',
 ];
 
-// Date-only comparisons (arrivalDate/departureDate are "YYYY-MM-DD" strings
-// from <input type="date">) — normalize to midnight so time-of-day never
-// skews the >= comparisons below.
 const toDateOnly = (value) => {
   const date = new Date(value);
   date.setHours(0, 0, 0, 0);
@@ -30,6 +28,7 @@ export const travelInformationSchema = z
     arrivalDate: z.string().min(1, 'Arrival date is required'),
     departureDate: z.string().min(1, 'Departure date is required'),
     mode: z.enum(TRAVEL_MODES, { message: 'Mode of travel is required' }),
+    travelModeOther: z.string().trim().optional(),
     vehicleNumber: z.string().trim().optional(),
     railwayStation: z.string().trim().optional(),
     busStand: z.string().trim().optional(),
@@ -46,14 +45,26 @@ export const travelInformationSchema = z
       message: 'Departure date must be on or after the arrival date',
       path: ['departureDate'],
     }
+  )
+  .refine(
+    (data) => {
+      if (!data.holyBathDate) return true;
+      const bath = toDateOnly(data.holyBathDate);
+      if (data.arrivalDate && bath < toDateOnly(data.arrivalDate)) return false;
+      if (data.departureDate && bath > toDateOnly(data.departureDate)) return false;
+      return true;
+    },
+    {
+      message: 'Expected Holy Bath Date must be between your Arrival Date and Departure Date.',
+      path: ['holyBathDate'],
+    }
   );
 
 export const travelInformationDefaults = {
   arrivalDate: '',
   departureDate: '',
-  // See personalInformation.schema.js's gender default for why '' and not
-  // undefined — same controlled-<Select> requirement.
   mode: '',
+  travelModeOther: '',
   vehicleNumber: '',
   railwayStation: '',
   busStand: '',

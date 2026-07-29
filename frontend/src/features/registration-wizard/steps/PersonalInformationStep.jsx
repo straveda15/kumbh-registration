@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { motion } from 'framer-motion';
@@ -159,9 +159,13 @@ export const PersonalInformationStep = ({ code, initialData }) => {
     return true;
   };
 
+  const [photoTouched, setPhotoTouched] = useState(false);
+  const yesterdayStr = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+
   const handleNext = async () => {
     // Photo is mandatory — block navigation if not uploaded.
     if (!hasPhoto) {
+      setPhotoTouched(true);
       toast.error('Please upload or capture a profile photo before continuing.');
       return;
     }
@@ -188,10 +192,10 @@ export const PersonalInformationStep = ({ code, initialData }) => {
           </div>
         </CardHeader>
         <CardContent>
-          {/* Profile Photo — mandatory. Show error hint when missing. */}
+          {/* Profile Photo — mandatory. Show error hint only after touched/attempted next. */}
           <div className="mb-3 sm:mb-4">
             <DocumentUploadCard type="profilePhoto" variant="compact" />
-            {!hasPhoto && (
+            {!hasPhoto && photoTouched && (
               <p className="mt-1.5 text-xs text-[#FF7262] animate-in fade-in duration-200">
                 Profile photo is required. Please upload or capture a photo.
               </p>
@@ -226,7 +230,7 @@ export const PersonalInformationStep = ({ code, initialData }) => {
             </Field>
 
             <Field label="Date of Birth" error={form.formState.errors.dob?.message}>
-              <Input className="h-14 px-4" type="date" {...form.register('dob')} />
+              <Input className="h-14 px-4" type="date" max={yesterdayStr} {...form.register('dob')} />
             </Field>
 
             <Field label="Age">

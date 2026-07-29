@@ -17,6 +17,7 @@ export const validateDocumentFile = (file) => {
 
 export const DOCUMENT_TYPE_META = {
   profilePhoto: { label: 'Profile Photo', multiple: false, accept: 'image/jpeg,image/png,image/jpg' },
+  familyMemberPhoto: { label: 'Family Member Photo', multiple: true, accept: 'image/jpeg,image/png,image/jpg' },
   governmentId: { label: 'Government ID', multiple: false, accept: 'image/jpeg,image/png,image/jpg,application/pdf' },
   medicalReport: { label: 'Medical Reports', multiple: true, accept: 'image/jpeg,image/png,image/jpg,application/pdf' },
   other: { label: 'Other Documents', multiple: true, accept: 'image/jpeg,image/png,image/jpg,application/pdf' },

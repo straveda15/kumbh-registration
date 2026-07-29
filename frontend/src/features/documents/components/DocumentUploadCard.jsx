@@ -11,12 +11,14 @@ import { useDocuments } from '../hooks/useDocuments';
 import { useUploadDocument } from '../hooks/useUploadDocument';
 import { useDeleteDocument } from '../hooks/useDeleteDocument';
 import { validateDocumentFile, DOCUMENT_TYPE_META } from '@/validators/document.schema';
+import { useRegistrationSnapshot } from '@/features/registration-wizard/hooks/useRegistrationSnapshot';
 
 const formatSize = (bytes) => `${Math.max(1, Math.round(bytes / 1024))} KB`;
 
 export const DocumentUploadCard = ({ type, variant = 'default' }) => {
-  const meta = DOCUMENT_TYPE_META[type];
+  const meta = DOCUMENT_TYPE_META[type] || { label: type, multiple: false };
   const { data: allDocuments } = useDocuments();
+  const { data: snapshot } = useRegistrationSnapshot();
   const uploadMutation = useUploadDocument();
   const deleteMutation = useDeleteDocument();
   const inputRef = useRef(null);
@@ -28,6 +30,7 @@ export const DocumentUploadCard = ({ type, variant = 'default' }) => {
   const [cropOpen, setCropOpen] = useState(false);
   const [previewDoc, setPreviewDoc] = useState(null);
 
+  const familyMembers = snapshot?.familyMembers || [];
   const documents = (allDocuments || []).filter((doc) => doc.type === type);
   const canAddMore = meta.multiple || documents.length === 0;
 
@@ -88,11 +91,85 @@ export const DocumentUploadCard = ({ type, variant = 'default' }) => {
 
   const isUploading = uploadMutation.isPending;
 
-  // Compact single-row layout for placement inside the Personal Information
-  // step (camera icon + label + Upload button) — same upload/crop/validate
-  // logic and hooks as the default card, just a denser presentation for a
-  // spot that isn't dedicated to document management the way the Document
-  // Center / Review step cards are.
+  // Dedicated layout for Family Member Photos card
+  if (type === 'familyMemberPhoto') {
+    const familyPhotos = familyMembers.filter((m) => Boolean((m.data || m).photoUrl));
+    const familyDocs = documents;
+    const totalCount = Math.max(familyPhotos.length, familyDocs.length);
+    const hasPhotos = totalCount > 0;
+
+    return (
+      <Card className="glass-card border-none">
+        <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0">
+          <CardTitle className="text-sm">Family Member Photos</CardTitle>
+          <Badge variant={hasPhotos ? 'default' : 'outline'} className="shrink-0">
+            {hasPhotos ? `Uploaded (${totalCount})` : 'Not Uploaded'}
+          </Badge>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-3">
+          {!hasPhotos ? (
+            <p className="text-xs text-muted-foreground">No family member photos uploaded yet.</p>
+          ) : (
+            familyPhotos.map((m) => {
+              const mData = m.data || m;
+              const docObj = familyDocs.find((d) => d.url === mData.photoUrl) || {
+                url: mData.photoUrl,
+                originalName: `${mData.fullName} - Photo`,
+                mimeType: 'image/jpeg',
+              };
+
+              return (
+                <div key={m._id || mData.fullName} className="flex items-center gap-3 rounded-xl bg-muted p-3">
+                  <img
+                    src={mData.photoUrl}
+                    alt={mData.fullName}
+                    className="size-12 shrink-0 rounded-lg object-cover border border-border"
+                  />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-semibold text-foreground">{mData.fullName}</p>
+                    <p className="text-xs text-muted-foreground">{mData.relationship} • Photo Uploaded</p>
+                  </div>
+                  <div className="flex shrink-0 gap-1">
+                    <Button
+                      size="icon-sm"
+                      variant="ghost"
+                      onClick={() => setPreviewDoc(docObj)}
+                      aria-label="Preview document"
+                    >
+                      <Eye className="size-3.5" />
+                    </Button>
+                    <Button size="icon-sm" variant="ghost" asChild aria-label="Download document">
+                      <a href={mData.photoUrl} target="_blank" rel="noreferrer" download>
+                        <Download className="size-3.5" />
+                      </a>
+                    </Button>
+                    {docObj._id && (
+                      <Button
+                        size="icon-sm"
+                        variant="ghost"
+                        onClick={() => handleDelete(docObj._id)}
+                        aria-label="Delete document"
+                      >
+                        <Trash2 className="size-3.5" />
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </CardContent>
+
+        <DocumentPreviewDialog
+          open={Boolean(previewDoc)}
+          onOpenChange={(open) => !open && setPreviewDoc(null)}
+          document={previewDoc}
+        />
+      </Card>
+    );
+  }
+
+  // Compact single-row layout for Personal Information step
   if (variant === 'compact') {
     const existingDoc = documents[0];
 
@@ -118,12 +195,6 @@ export const DocumentUploadCard = ({ type, variant = 'default' }) => {
           </div>
         </div>
 
-        {/* Two dedicated inputs — one forces the device camera straight
-            open (capture="environment"), the other opens the normal
-            gallery/file picker — rather than one input relying on the
-            browser's own camera-or-library chooser sheet, so "Take Photo"
-            and "Upload Photo" are two real, distinct, always-visible
-            buttons as requested instead of one generic "Upload". */}
         <input
           ref={cameraInputRef}
           type="file"
@@ -140,15 +211,7 @@ export const DocumentUploadCard = ({ type, variant = 'default' }) => {
           </Button>
         ) : (
           !isUploading && (
-            // A true 2-column grid — not flex-1 — so both actions land at
-            // exactly the same width regardless of label length ("Retake"
-            // vs "Change"/"Upload"), instead of each sizing to its own text.
             <div className="grid grid-cols-2 gap-2">
-              {/* A single-instance document type (profilePhoto) is never
-                  "locked" once uploaded — re-picking a file here replaces
-                  it (the backend deletes the old asset on re-upload, see
-                  document.service.js's registerDocument), and Remove
-                  clears it entirely. */}
               <Button
                 variant="outline"
                 onClick={() => cameraInputRef.current?.click()}
@@ -192,10 +255,6 @@ export const DocumentUploadCard = ({ type, variant = 'default' }) => {
     <Card className="glass-card border-none">
       <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0">
         <CardTitle className="text-sm">{meta.label}</CardTitle>
-        {/* Reflects real upload state only — there's no per-document review
-            workflow in the data model (only the registration as a whole is
-            approved/rejected), so this never claims a "Pending"/"Rejected"
-            status that doesn't exist. */}
         <Badge variant={documents.length > 0 ? 'default' : 'outline'} className="shrink-0">
           {documents.length > 0 ? 'Uploaded' : 'Not Uploaded'}
         </Badge>
