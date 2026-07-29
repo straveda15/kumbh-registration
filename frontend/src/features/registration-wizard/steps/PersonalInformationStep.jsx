@@ -28,9 +28,9 @@ import {
   LANGUAGE_OPTIONS,
 } from '@/validators/personalInformation.schema';
 import { INDIAN_STATES_AND_UTS } from '@/utils/indianStates';
-import { CITIES_BY_STATE } from '@/utils/indianCitiesByState';
+import { getVillagesForTaluka } from '@/utils/indianCitiesByState';
 import { DISTRICTS_BY_STATE } from '@/utils/indianDistrictsByState';
-import { TALUKAS_BY_DISTRICT } from '@/utils/indianTalukasByDistrict';
+import { getTalukasForDistrict } from '@/utils/indianTalukasByDistrict';
 import { computeAge } from '@/utils/computeAge';
 import { useWizardUiStore } from '@/store/useWizardUiStore';
 import { useWizardLiveDraftStore } from '@/store/useWizardLiveDraftStore';
@@ -42,32 +42,22 @@ const NEXT_STEP = WIZARD_STEP_META[1]; // Emergency Contact
 const STATE_OPTIONS = INDIAN_STATES_AND_UTS.map((state) => ({ value: state, label: state }));
 const EMPTY_OPTIONS = [];
 
-// Built once at module load — stable references so re-renders caused by
-// live-preview mirroring (form.watch effect) don't rebuild on every keystroke.
-const CITY_OPTIONS_BY_STATE = Object.fromEntries(
-  Object.entries(CITIES_BY_STATE).map(([state, cities]) => [
-    state,
-    cities.map((city) => ({ value: city, label: city })),
-  ])
-);
-
-const DISTRICT_OPTIONS_BY_STATE = Object.fromEntries(
-  Object.entries(DISTRICTS_BY_STATE).map(([state, districts]) => [
-    state,
-    districts.map((d) => ({ value: d, label: d })),
-  ])
-);
-
-const TALUKA_OPTIONS_BY_DISTRICT = Object.fromEntries(
-  Object.entries(TALUKAS_BY_DISTRICT).map(([district, talukas]) => [
-    district,
-    talukas.map((t) => ({ value: t, label: t })),
-  ])
-);
+const renderLabel = (label) => {
+  if (typeof label !== 'string') return label;
+  if (label.endsWith('*')) {
+    const mainText = label.slice(0, -1).trimEnd();
+    return (
+      <>
+        {mainText} <span className="text-destructive font-medium ml-0.5">*</span>
+      </>
+    );
+  }
+  return label;
+};
 
 const Field = ({ label, error, children, className }) => (
   <div className={cn('flex flex-col gap-1.5', className)}>
-    <Label className="text-base font-semibold text-foreground">{label}</Label>
+    <Label className="text-base font-semibold text-foreground">{renderLabel(label)}</Label>
     {children}
     {error && <p className="text-xs text-[#FF7262] animate-in fade-in duration-200">{error}</p>}
   </div>
@@ -100,36 +90,25 @@ export const PersonalInformationStep = ({ code, initialData }) => {
   const age = computeAge(form.watch('dob'));
   const selectedState = form.watch('state');
   const selectedDistrict = form.watch('district');
+  const selectedTaluka = form.watch('taluka');
 
-  // Cascading options — each tier reads from its stable pre-built map.
-  const cityOptions = selectedState
-    ? CITY_OPTIONS_BY_STATE[selectedState] || EMPTY_OPTIONS
-    : EMPTY_OPTIONS;
-
+  // Cascading options
   const districtOptions = selectedState
-    ? DISTRICT_OPTIONS_BY_STATE[selectedState] || EMPTY_OPTIONS
+    ? (DISTRICTS_BY_STATE[selectedState] || []).map((d) => ({ value: d, label: d }))
     : EMPTY_OPTIONS;
 
   const talukaOptions = selectedDistrict
-    ? TALUKA_OPTIONS_BY_DISTRICT[selectedDistrict] || EMPTY_OPTIONS
+    ? getTalukasForDistrict(selectedDistrict).map((t) => ({ value: t, label: t }))
+    : EMPTY_OPTIONS;
+
+  const villageOptions = selectedTaluka
+    ? getVillagesForTaluka(selectedTaluka, selectedDistrict).map((v) => ({ value: v, label: v }))
     : EMPTY_OPTIONS;
 
   // Check whether a profile photo has been uploaded.
   const profilePhotoDoc = (allDocuments || []).find((doc) => doc.type === 'profilePhoto');
   const hasPhoto = Boolean(profilePhotoDoc);
 
-  // Autosave: React's onBlur bubbles from any descendant field, so a single
-  // handler on the form covers every input. Only persists once the whole
-  // step passes validation — the backend's PUT accepts any payload shape,
-  // so "is this step done" is a frontend concern, not something the API
-  // enforces.
-  //
-  // password/confirmPassword are split out and sent to the dedicated
-  // account-credentials endpoint instead of the generic personal-info
-  // save (see registration.api.js) — a plaintext password must never ride
-  // along in the same payload as address/dob/etc. Left blank on repeat
-  // saves (editing this step after the account already exists), so the
-  // pilgrim isn't forced to re-enter their password on every autosave.
   const persist = async () => {
     const isValid = await form.trigger();
     if (!isValid) return false;
@@ -207,11 +186,11 @@ export const PersonalInformationStep = ({ code, initialData }) => {
             onSubmit={(event) => event.preventDefault()}
             className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3"
           >
-            <Field label="Full Name (as per ID)" className="lg:col-span-2" error={form.formState.errors.fullName?.message}>
+            <Field label="Full Name (as per ID) *" className="lg:col-span-2" error={form.formState.errors.fullName?.message}>
               <Input className="h-14 px-4" {...form.register('fullName')} placeholder="As per government ID" />
             </Field>
 
-            <Field label="Gender" error={form.formState.errors.gender?.message}>
+            <Field label="Gender *" error={form.formState.errors.gender?.message}>
               <Select
                 value={form.watch('gender')}
                 onValueChange={(value) =>
@@ -229,7 +208,7 @@ export const PersonalInformationStep = ({ code, initialData }) => {
               </Select>
             </Field>
 
-            <Field label="Date of Birth" error={form.formState.errors.dob?.message}>
+            <Field label="Date of Birth *" error={form.formState.errors.dob?.message}>
               <Input className="h-14 px-4" type="date" max={yesterdayStr} {...form.register('dob')} />
             </Field>
 
@@ -237,7 +216,7 @@ export const PersonalInformationStep = ({ code, initialData }) => {
               <Input className="h-14 px-4" value={age} disabled placeholder="Auto-calculated" />
             </Field>
 
-            <Field label="Nationality" error={form.formState.errors.nationality?.message}>
+            <Field label="Nationality *" error={form.formState.errors.nationality?.message}>
               <Input className="h-14 px-4" {...form.register('nationality')} />
             </Field>
 
@@ -251,11 +230,15 @@ export const PersonalInformationStep = ({ code, initialData }) => {
               />
             </Field>
 
-            <Field label="Mobile Number" error={form.formState.errors.mobile?.message}>
+            <Field label="Mobile Number *" error={form.formState.errors.mobile?.message}>
               <Input
                 className="h-14 px-4"
                 {...form.register('mobile')}
                 inputMode="numeric"
+                maxLength={10}
+                onInput={(e) => {
+                  e.target.value = e.target.value.replace(/\D/g, '').slice(0, 10);
+                }}
                 placeholder="10-digit mobile number"
               />
             </Field>
@@ -265,16 +248,37 @@ export const PersonalInformationStep = ({ code, initialData }) => {
                 className="h-14 px-4"
                 {...form.register('alternateMobile')}
                 inputMode="numeric"
+                maxLength={10}
+                onInput={(e) => {
+                  e.target.value = e.target.value.replace(/\D/g, '').slice(0, 10);
+                }}
                 placeholder="Optional"
               />
             </Field>
 
-            <Field label="Email" error={form.formState.errors.email?.message}>
+            <Field label="Email *" error={form.formState.errors.email?.message}>
               <Input className="h-14 px-4" type="email" {...form.register('email')} placeholder="you@example.com" />
             </Field>
 
-            {/* Preferred Language — optional, expanded to 14 languages */}
-            <Field label="Preferred Language" error={form.formState.errors.language?.message}>
+            <Field label="Password *" error={form.formState.errors.password?.message}>
+              <PasswordInput
+                className="h-14 px-4"
+                {...form.register('password')}
+                placeholder="Create Password"
+                autoComplete="new-password"
+              />
+            </Field>
+
+            <Field label="Confirm Password *" error={form.formState.errors.confirmPassword?.message}>
+              <PasswordInput
+                className="h-14 px-4"
+                {...form.register('confirmPassword')}
+                placeholder="Confirm Password"
+                autoComplete="new-password"
+              />
+            </Field>
+
+            <Field label="Preferred Language *" error={form.formState.errors.language?.message}>
               <Select
                 value={form.watch('language')}
                 onValueChange={(value) =>
@@ -294,26 +298,8 @@ export const PersonalInformationStep = ({ code, initialData }) => {
               </Select>
             </Field>
 
-            <Field label="Password" error={form.formState.errors.password?.message}>
-              <PasswordInput
-                className="h-14 px-4"
-                {...form.register('password')}
-                placeholder="Create Password"
-                autoComplete="new-password"
-              />
-            </Field>
-
-            <Field label="Confirm Password" error={form.formState.errors.confirmPassword?.message}>
-              <PasswordInput
-                className="h-14 px-4"
-                {...form.register('confirmPassword')}
-                placeholder="Confirm Password"
-                autoComplete="new-password"
-              />
-            </Field>
-
-            {/* ── State → District → Taluka cascading dropdowns ── */}
-            <Field label="State" error={form.formState.errors.state?.message}>
+            {/* ── State → District → Taluka → Village cascading dropdowns ── */}
+            <Field label="State *" error={form.formState.errors.state?.message}>
               <Combobox
                 className="h-14 px-4"
                 options={STATE_OPTIONS}
@@ -323,7 +309,7 @@ export const PersonalInformationStep = ({ code, initialData }) => {
                   // Reset dependent fields whenever state changes.
                   form.setValue('district', '', { shouldValidate: false, shouldDirty: true });
                   form.setValue('taluka', '', { shouldValidate: false, shouldDirty: true });
-                  form.setValue('village', '', { shouldValidate: true, shouldDirty: true });
+                  form.setValue('village', '', { shouldValidate: false, shouldDirty: true });
                 }}
                 placeholder="Select State"
                 searchPlaceholder="Search states…"
@@ -331,7 +317,6 @@ export const PersonalInformationStep = ({ code, initialData }) => {
               />
             </Field>
 
-            {/* District — optional, disabled until a state is selected */}
             <Field label="District" error={form.formState.errors.district?.message}>
               <Combobox
                 className="h-14 px-4"
@@ -339,8 +324,9 @@ export const PersonalInformationStep = ({ code, initialData }) => {
                 value={selectedDistrict}
                 onValueChange={(value) => {
                   form.setValue('district', value, { shouldValidate: true, shouldDirty: true });
-                  // Reset taluka whenever district changes.
+                  // Reset dependent fields whenever district changes.
                   form.setValue('taluka', '', { shouldValidate: false, shouldDirty: true });
+                  form.setValue('village', '', { shouldValidate: false, shouldDirty: true });
                 }}
                 placeholder={selectedState ? 'Select District' : 'Select State first'}
                 searchPlaceholder="Search districts…"
@@ -349,36 +335,37 @@ export const PersonalInformationStep = ({ code, initialData }) => {
               />
             </Field>
 
-            {/* Taluka — optional, disabled until a district is selected */}
             <Field label="Taluka" error={form.formState.errors.taluka?.message}>
               <Combobox
                 className="h-14 px-4"
                 options={talukaOptions}
-                value={form.watch('taluka')}
-                onValueChange={(value) =>
-                  form.setValue('taluka', value, { shouldValidate: true, shouldDirty: true })
-                }
-                placeholder={selectedDistrict ? 'Select Taluka' : 'Select District first'}
+                value={selectedTaluka}
+                onValueChange={(value) => {
+                  form.setValue('taluka', value, { shouldValidate: true, shouldDirty: true });
+                  // Reset village whenever taluka changes.
+                  form.setValue('village', '', { shouldValidate: false, shouldDirty: true });
+                }}
+                placeholder={selectedDistrict ? 'Select Taluka' : selectedState ? 'Select District first' : 'Select State first'}
                 searchPlaceholder="Search talukas…"
-                emptyText="No matching taluka — pick 'Use' below to enter as typed."
+                emptyText="No matching taluka."
                 allowCustomValue
                 disabled={!selectedDistrict}
               />
             </Field>
 
-            <Field label="Village / Town" error={form.formState.errors.village?.message}>
+            <Field label="Village / Town *" error={form.formState.errors.village?.message}>
               <Combobox
                 className="h-14 px-4"
-                options={cityOptions}
+                options={villageOptions}
                 value={form.watch('village')}
                 onValueChange={(value) =>
                   form.setValue('village', value, { shouldValidate: true, shouldDirty: true })
                 }
-                placeholder={selectedState ? 'Select City / Town' : 'Select State First'}
-                searchPlaceholder="Search city or town…"
-                emptyText="No matching city — pick 'Use' below to enter it as typed."
+                placeholder={selectedTaluka ? 'Select Village / Town' : selectedDistrict ? 'Select Taluka first' : selectedState ? 'Select District first' : 'Select State first'}
+                searchPlaceholder="Search village or town…"
+                emptyText="No matching village — pick 'Use' below to enter as typed."
                 allowCustomValue
-                disabled={!selectedState}
+                disabled={!selectedTaluka}
               />
             </Field>
 
@@ -391,7 +378,7 @@ export const PersonalInformationStep = ({ code, initialData }) => {
               <Input className="h-14 px-4" {...form.register('address')} placeholder="House / street (optional)" />
             </Field>
 
-            <Field label="PIN Code" error={form.formState.errors.pinCode?.message}>
+            <Field label="PIN Code *" error={form.formState.errors.pinCode?.message}>
               <Input className="h-14 px-4" {...form.register('pinCode')} inputMode="numeric" placeholder="6-digit PIN" />
             </Field>
           </form>

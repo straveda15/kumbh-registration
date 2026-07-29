@@ -57,7 +57,6 @@ export const EmergencyContactStep = ({ code, initialData }) => {
         <div className="flex items-center gap-2 border-b border-border/40 pb-2">
           <UserCheck className="size-4 text-primary" />
           <h3 className="text-sm font-bold text-foreground">Emergency Contact 1</h3>
-          <span className="text-xs font-semibold text-destructive">* Required</span>
         </div>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -91,6 +90,9 @@ export const EmergencyContactStep = ({ code, initialData }) => {
               {...form.register('phone')}
               inputMode="numeric"
               maxLength={10}
+              onInput={(e) => {
+                e.target.value = e.target.value.replace(/\D/g, '').slice(0, 10);
+              }}
               placeholder="10-digit phone number"
             />
           </WizardField>
@@ -104,6 +106,9 @@ export const EmergencyContactStep = ({ code, initialData }) => {
               {...form.register('alternativePhone')}
               inputMode="numeric"
               maxLength={10}
+              onInput={(e) => {
+                e.target.value = e.target.value.replace(/\D/g, '').slice(0, 10);
+              }}
               placeholder="Optional"
             />
           </WizardField>
@@ -115,7 +120,6 @@ export const EmergencyContactStep = ({ code, initialData }) => {
         <div className="flex items-center gap-2 border-b border-border/40 pb-2">
           <PhoneCall className="size-4 text-primary" />
           <h3 className="text-sm font-bold text-foreground">Emergency Contact 2</h3>
-          <span className="text-xs font-semibold text-destructive">* Required</span>
         </div>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -149,6 +153,9 @@ export const EmergencyContactStep = ({ code, initialData }) => {
               {...form.register('phone2')}
               inputMode="numeric"
               maxLength={10}
+              onInput={(e) => {
+                e.target.value = e.target.value.replace(/\D/g, '').slice(0, 10);
+              }}
               placeholder="10-digit phone number"
             />
           </WizardField>
@@ -162,6 +169,9 @@ export const EmergencyContactStep = ({ code, initialData }) => {
               {...form.register('alternativePhone2')}
               inputMode="numeric"
               maxLength={10}
+              onInput={(e) => {
+                e.target.value = e.target.value.replace(/\D/g, '').slice(0, 10);
+              }}
               placeholder="Optional"
             />
           </WizardField>

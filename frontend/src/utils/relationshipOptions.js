@@ -2,14 +2,20 @@
 // familyMember.schema.js (a travelling family member) — same closed set of
 // relationships applies to both.
 export const RELATIONSHIP_OPTIONS = [
+  'Spouse',
+  'Husband',
+  'Wife',
   'Father',
   'Mother',
+  'Son',
+  'Daughter',
   'Brother',
   'Sister',
-  'Spouse',
-  'Friend',
-  'Relative',
+  'Grandfather',
+  'Grandmother',
   'Guardian',
+  'Relative',
+  'Friend',
   'Other',
 ];
 

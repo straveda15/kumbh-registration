@@ -34,8 +34,8 @@ export const LANGUAGE_OPTIONS = [
 // force re-entering your password every time.
 export const personalInformationSchema = z
   .object({
-    fullName: z.string().trim().min(2, 'Full name is required'),
-    gender: z.enum(['male', 'female', 'other'], { message: 'Please select your gender.' }),
+    fullName: z.string().trim().min(1, 'Full name is required'),
+    gender: z.string().min(1, 'Please select your gender.'),
     dob: z
       .string()
       .min(1, 'Date of birth is required')
@@ -52,14 +52,19 @@ export const personalInformationSchema = z
     mobile: z
       .string()
       .trim()
+      .min(1, 'Mobile number is required')
       .regex(/^[0-9]{10}$/, 'Enter a valid 10-digit mobile number'),
-    // Required (not optional like before) — this is now also the
-    // pilgrim's login identifier.
-    email: z.string().trim().email('Enter a valid email address'),
-    password: z.string().optional().default(''),
-    confirmPassword: z.string().optional().default(''),
+    email: z
+      .string()
+      .trim()
+      .min(1, 'Email address is required')
+      .email('Enter a valid email address'),
+    password: z
+      .string()
+      .min(1, 'Password is required')
+      .min(6, 'Password must be at least 6 characters'),
+    confirmPassword: z.string().min(1, 'Confirm password is required'),
     nationality: z.string().trim().min(1, 'Nationality is required'),
-    // Mandatory: exactly 12 numeric digits.
     aadhaarNumber: z
       .string()
       .trim()
@@ -71,27 +76,17 @@ export const personalInformationSchema = z
       .regex(/^[0-9]{10}$/, 'Enter a valid 10-digit mobile number')
       .optional()
       .or(z.literal('')),
-    // Preferred language is now optional.
-    language: z
-      .enum(LANGUAGE_OPTIONS, { message: 'Select a preferred language' })
-      .optional()
-      .or(z.literal('')),
-    // Address is now optional.
+    language: z.string().min(1, 'Preferred language is required'),
     address: z.string().trim().optional().or(z.literal('')),
-    state: z.enum(INDIAN_STATES_AND_UTS, { message: 'State is required' }),
-    // District is now optional (cascading — populated after state pick).
+    state: z.string().min(1, 'State is required'),
     district: z.string().trim().optional().or(z.literal('')),
-    // Taluka is now optional (cascading — populated after district pick).
     taluka: z.string().trim().optional().or(z.literal('')),
     village: z.string().trim().min(1, 'Village/Town is required'),
     pinCode: z
       .string()
       .trim()
+      .min(1, 'PIN code is required')
       .regex(/^[0-9]{6}$/, 'Enter a valid 6-digit PIN code'),
-  })
-  .refine((data) => !data.password || data.password.length >= 6, {
-    message: 'Password must be at least 6 characters',
-    path: ['password'],
   })
   .refine((data) => data.password === data.confirmPassword, {
     message: 'Passwords do not match',
