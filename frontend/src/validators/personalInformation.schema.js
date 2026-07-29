@@ -36,7 +36,19 @@ export const personalInformationSchema = z
   .object({
     fullName: z.string().trim().min(2, 'Full name is required'),
     gender: z.enum(['male', 'female', 'other'], { message: 'Please select your gender.' }),
-    dob: z.string().min(1, 'Date of birth is required'),
+    dob: z
+      .string()
+      .min(1, 'Date of birth is required')
+      .refine(
+        (val) => {
+          if (!val) return false;
+          const selected = new Date(val);
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          return selected < today;
+        },
+        { message: 'Please select a valid Date of Birth.' }
+      ),
     mobile: z
       .string()
       .trim()

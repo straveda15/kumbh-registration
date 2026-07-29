@@ -1,8 +1,6 @@
-import { Pencil, Trash2 } from 'lucide-react';
+import { Pencil, Trash2, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
-// onEdit/onDelete are optional — omit both for a read-only rendering
-// (reused as-is by the dashboard's Family Members card).
 export const FamilyMemberTable = ({ members, onEdit, onDelete }) => {
   const readOnly = !onEdit && !onDelete;
 
@@ -11,7 +9,7 @@ export const FamilyMemberTable = ({ members, onEdit, onDelete }) => {
       <table className="w-full min-w-[520px] text-sm">
         <thead className="bg-muted text-left text-xs tracking-wider text-muted-foreground uppercase">
           <tr>
-            <th className="px-4 py-3 font-medium">Name</th>
+            <th className="px-4 py-3 font-medium">Photo & Name</th>
             <th className="px-4 py-3 font-medium">Relationship</th>
             <th className="px-4 py-3 font-medium">Age</th>
             <th className="px-4 py-3 font-medium">Gender</th>
@@ -22,7 +20,18 @@ export const FamilyMemberTable = ({ members, onEdit, onDelete }) => {
         <tbody className="divide-y divide-border">
           {members.map((member) => (
             <tr key={member._id}>
-              <td className="px-4 py-3 text-foreground">{member.data?.fullName}</td>
+              <td className="px-4 py-3 text-foreground font-medium">
+                <div className="flex items-center gap-2.5">
+                  <span className="flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary/15 text-primary border border-border">
+                    {member.data?.photoUrl ? (
+                      <img src={member.data.photoUrl} alt={member.data.fullName} className="size-full object-cover" />
+                    ) : (
+                      <User className="size-4" />
+                    )}
+                  </span>
+                  <span>{member.data?.fullName}</span>
+                </div>
+              </td>
               <td className="px-4 py-3 text-muted-foreground">{member.data?.relationship}</td>
               <td className="px-4 py-3 text-muted-foreground">{member.data?.age}</td>
               <td className="px-4 py-3 text-muted-foreground capitalize">{member.data?.gender}</td>

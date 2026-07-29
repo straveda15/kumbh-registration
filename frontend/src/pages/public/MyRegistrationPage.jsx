@@ -148,16 +148,25 @@ export const MyRegistrationPage = () => {
           <DataRow label="Relationship" value={emergency.relationship} />
           <DataRow label="Mobile Number" value={emergency.phone} />
           <DataRow label="Alternative Phone" value={emergency.alternativePhone} />
+          {emergency.contactName2 && (
+            <>
+              <div className="my-1 border-t border-border/50 pt-2 font-semibold text-primary">Emergency Contact 2</div>
+              <DataRow label="Contact Name" value={emergency.contactName2} />
+              <DataRow label="Relationship" value={emergency.relationship2} />
+              <DataRow label="Mobile Number" value={emergency.phone2} />
+              <DataRow label="Alternative Phone" value={emergency.alternativePhone2} />
+            </>
+          )}
         </RowList>
       </CollapsibleSection>
 
       <CollapsibleSection title="Medical Information" icon={HeartPulse}>
         <RowList>
           <DataRow label="Blood Group" value={medical.bloodGroup} />
-          <DataRow label="Allergies" value={medical.allergies} />
-          <DataRow label="Medical Conditions" value={medical.medicalConditions} />
+          <DataRow label="Allergies" value={Array.isArray(medical.allergies) ? medical.allergies.join(', ') : medical.allergies} />
+          <DataRow label="Medical Conditions" value={Array.isArray(medical.medicalConditions) ? medical.medicalConditions.join(', ') : medical.medicalConditions} />
           <DataRow label="Current Medicines" value={medical.currentMedicines} />
-          <DataRow label="Doctor Name" value={medical.doctorName} />
+          <DataRow label="Family Doctor Name" value={medical.doctorName} />
           <DataRow label="Emergency Notes" value={medical.emergencyNotes} />
         </RowList>
       </CollapsibleSection>
@@ -166,7 +175,7 @@ export const MyRegistrationPage = () => {
         <RowList>
           <DataRow label="Arrival Date" value={formatDate(travel.arrivalDate)} />
           <DataRow label="Departure Date" value={formatDate(travel.departureDate)} />
-          <DataRow label="Mode of Transport" value={travel.mode} />
+          <DataRow label="Mode of Transport" value={travel.mode === 'Other' && travel.travelModeOther ? `Other (${travel.travelModeOther})` : travel.mode} />
           <DataRow label="Vehicle Number" value={travel.vehicleNumber} />
           <DataRow label="Railway Station" value={travel.railwayStation} />
           <DataRow label="Bus Stand" value={travel.busStand} />
@@ -187,28 +196,86 @@ export const MyRegistrationPage = () => {
         {familyMembers.length === 0 ? (
           <p className="text-xs text-muted-foreground">No family members were added.</p>
         ) : (
-          <div className="flex flex-col gap-2">
-            {familyMembers.map((member) => (
-              <div key={member._id} className="rounded-xl bg-muted p-3">
-                <p className="text-sm font-medium text-foreground">{member.data?.fullName}</p>
-                <p className="text-xs text-muted-foreground">
-                  {member.data?.relationship} • {member.data?.age} yrs ·{' '}
-                  <span className="capitalize">{member.data?.gender}</span>
-                </p>
-                {member.data?.aadhaarNumber && (
-                  <p className="mt-1 font-mono text-xs text-muted-foreground">
-                    Aadhaar: {member.data.aadhaarNumber}
-                  </p>
-                )}
-              </div>
-            ))}
+          <div className="flex flex-col gap-2.5">
+            {familyMembers.map((member) => {
+              const memData = member.data || member;
+              return (
+                <div key={member._id || memData.fullName} className="flex items-center gap-3 rounded-xl bg-muted p-3">
+                  <span className="flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary/15 text-primary border border-border">
+                    {memData.photoUrl ? (
+                      <img src={memData.photoUrl} alt={memData.fullName} className="size-full object-cover" />
+                    ) : (
+                      <UserRound className="size-5" />
+                    )}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-semibold text-foreground">{memData.fullName}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {memData.relationship} • {memData.age} yrs ·{' '}
+                      <span className="capitalize">{memData.gender}</span>
+                    </p>
+                    {memData.aadhaarNumber && (
+                      <p className="mt-0.5 font-mono text-xs text-muted-foreground">
+                        Aadhaar: {memData.aadhaarNumber}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         )}
       </CollapsibleSection>
 
       <CollapsibleSection title="Documents" icon={FileText}>
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-2.5">
           {Object.entries(DOCUMENT_TYPE_META).map(([type, meta]) => {
+            if (type === 'familyMemberPhoto') {
+              const familyPhotos = familyMembers.filter((m) => Boolean((m.data || m).photoUrl));
+              const familyDocs = (documents || []).filter((doc) => doc.type === 'familyMemberPhoto');
+              const hasPhotos = familyPhotos.length > 0 || familyDocs.length > 0;
+
+              return (
+                <div key={type} className="flex flex-col gap-2 rounded-xl bg-muted/60 p-3">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-semibold text-foreground">{meta.label}</p>
+                    <Badge variant={hasPhotos ? 'default' : 'outline'} className="shrink-0">
+                      {hasPhotos ? `Uploaded (${familyPhotos.length || familyDocs.length})` : 'Not Uploaded'}
+                    </Badge>
+                  </div>
+                  {!hasPhotos ? (
+                    <p className="text-xs text-muted-foreground">No family member photos uploaded.</p>
+                  ) : (
+                    <div className="flex flex-col gap-2 mt-1">
+                      {familyPhotos.map((m) => {
+                        const mData = m.data || m;
+                        return (
+                          <a
+                            key={m._id || mData.fullName}
+                            href={mData.photoUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="flex items-center gap-3 rounded-lg bg-background p-2.5 hover:bg-accent transition-colors"
+                          >
+                            <img
+                              src={mData.photoUrl}
+                              alt={mData.fullName}
+                              className="size-10 shrink-0 rounded-lg object-cover"
+                            />
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate text-sm font-medium text-foreground">{mData.fullName}</p>
+                              <p className="text-xs text-muted-foreground">{mData.relationship} • Tap to view</p>
+                            </div>
+                            <Badge variant="secondary" className="text-xs">View</Badge>
+                          </a>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            }
+
             const docsOfType = (documents || []).filter((doc) => doc.type === type);
             const firstDoc = docsOfType[0];
             const RowTag = firstDoc ? 'a' : 'div';
