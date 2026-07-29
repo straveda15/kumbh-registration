@@ -7,12 +7,12 @@ import { cn } from '@/lib/utils';
 const getVerificationBadgeMeta = (status) => {
   const s = String(status || '').trim().toUpperCase();
   if (s === 'APPROVED') {
-    return { badgeVariant: 'success', icon: BadgeCheck };
+    return { label: 'Approved', badgeVariant: 'success', icon: BadgeCheck };
   }
   if (s === 'REJECTED') {
-    return { badgeVariant: 'destructive', icon: ShieldAlert };
+    return { label: 'Rejected', badgeVariant: 'destructive', icon: ShieldAlert };
   }
-  return { badgeVariant: 'warning', icon: ShieldAlert };
+  return { label: 'Pending', badgeVariant: 'warning', icon: ShieldAlert };
 };
 
 // ── Shared row style ───────────────────────────────────────────────────────
@@ -41,11 +41,13 @@ export const DigitalPassCard = forwardRef(
     const verificationMeta = getVerificationBadgeMeta(rawVerificationStatus);
     const VerificationIcon = verificationMeta.icon;
 
-    const isRevoked = digitalPass?.status === 'revoked';
-    const isRejected = String(rawVerificationStatus).toUpperCase() === 'REJECTED';
-    const isApproved = String(rawVerificationStatus).toUpperCase() === 'APPROVED';
-    const hasQrImage = Boolean(digitalPass?.qrImage);
-    const isVerified = (isApproved || Boolean(digitalPass?.passActivated)) && !isRevoked && !isRejected;
+    const regStatusKey = String(registrationStatus || '').toLowerCase();
+    const isRegApproved = regStatusKey === 'approved';
+    const isRegRejected = regStatusKey === 'rejected';
+
+    const isVerificationApproved = String(rawVerificationStatus).toUpperCase() === 'APPROVED';
+    const isQrActive = isVerificationApproved && Boolean(digitalPass?.qrImage);
+    const isVerified = isVerificationApproved;
 
     const hasAccommodation = accommodation.address || accommodation.type;
 
@@ -85,7 +87,7 @@ export const DigitalPassCard = forwardRef(
 
         {/* ════ QR SECTION ════ */}
         <div className="flex items-center justify-center px-4 py-4">
-          {hasQrImage ? (
+          {isQrActive ? (
             <img
               src={digitalPass.qrImage}
               alt="Entry pass QR code"
@@ -154,10 +156,10 @@ export const DigitalPassCard = forwardRef(
           </div>
 
           <div className={ROW}>
-            <span className={LABEL}>Verification</span>
+            <span className={LABEL}>On-Site Verification</span>
             <Badge variant={verificationMeta.badgeVariant} className="shrink-0 gap-1 text-[10.5px]">
               <VerificationIcon className="size-2.5 shrink-0" />
-              {rawVerificationStatus}
+              {verificationMeta.label}
             </Badge>
           </div>
 
@@ -172,24 +174,24 @@ export const DigitalPassCard = forwardRef(
         </div>
 
         {/* ════ DYNAMIC ACTIVATION BANNER ════ */}
-        {isApproved ? (
+        {isRegApproved ? (
           <div className="mt-0 border-t border-green-500/20 bg-green-500/10 px-5 py-2.5 text-center">
             <p className="text-[10px] font-extrabold tracking-[0.14em] text-green-600 dark:text-green-400 uppercase">
               ENTRY PASS ACTIVE
             </p>
-            <div className="mt-1 inline-flex items-center justify-center gap-1.5 text-[9.5px] leading-tight text-muted-foreground">
+            <div className="mt-1 flex items-center justify-center gap-1.5 text-[9.5px] leading-tight text-muted-foreground whitespace-nowrap">
               <Info className="size-2.5 shrink-0 text-green-600 dark:text-green-400" />
-              <span>Your QR Code is active and ready for event entry.</span>
+              <span>QR Code will be activated after On-Site Verification approval.</span>
             </div>
           </div>
-        ) : isRejected ? (
+        ) : isRegRejected ? (
           <div className="mt-0 border-t border-destructive/20 bg-destructive/10 px-5 py-2.5 text-center">
             <p className="text-[10px] font-extrabold tracking-[0.14em] text-destructive uppercase">
               ENTRY PASS UNAVAILABLE
             </p>
-            <div className="mt-1 inline-flex items-center justify-center gap-1.5 text-[9.5px] leading-tight text-muted-foreground">
+            <div className="mt-1 flex items-center justify-center gap-1.5 text-[9.5px] leading-tight text-muted-foreground whitespace-nowrap">
               <Info className="size-2.5 shrink-0 text-destructive" />
-              <span>Your Entry Pass cannot be activated until verification is successfully completed.</span>
+              <span>QR Code will be activated after On-Site Verification approval.</span>
             </div>
             {rejectionReason && (
               <div className="mt-1.5 w-full rounded-lg bg-destructive/15 p-2 text-[9.5px] font-medium text-destructive">
@@ -198,16 +200,23 @@ export const DigitalPassCard = forwardRef(
             )}
           </div>
         ) : (
-          <div className="mt-0 border-t border-destructive/20 bg-destructive/10 px-5 py-2.5 text-center">
-            <p className="text-[10px] font-extrabold tracking-[0.14em] text-destructive uppercase">
+          <div className="mt-0 border-t border-warning/20 bg-warning/10 px-5 py-2.5 text-center">
+            <p className="text-[10px] font-extrabold tracking-[0.14em] text-amber-600 dark:text-amber-400 uppercase">
               ENTRY PASS NOT YET ACTIVATED
             </p>
-            <div className="mt-1 inline-flex items-center justify-center gap-1.5 text-[9.5px] leading-tight text-muted-foreground">
-              <Info className="size-2.5 shrink-0 text-muted-foreground" />
-              <span>QR Code available after on-site identity verification.</span>
+            <div className="mt-1 flex items-center justify-center gap-1.5 text-[9.5px] leading-tight text-muted-foreground whitespace-nowrap">
+              <Info className="size-2.5 shrink-0 text-amber-600 dark:text-amber-400" />
+              <span>QR Code will be activated after On-Site Verification approval.</span>
             </div>
           </div>
         )}
+
+        {/* ════ DEMO PURPOSE NOTE ════ */}
+        <div className="py-2.5 text-center border-t border-white/5">
+          <p className="text-[9px] font-medium text-muted-foreground/80 tracking-wide">
+            For Demo Purpose Only
+          </p>
+        </div>
       </div>
     );
   }
