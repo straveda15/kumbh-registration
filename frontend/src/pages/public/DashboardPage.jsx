@@ -62,23 +62,22 @@ const RegistrationSuccessBanner = ({ registrationNumber, onDismiss }) => (
 
 // ── 3-Step Registration Journey Stepper ──────────────────────────────────────
 const JourneyStepper = ({ registrationStatus, verificationStatus }) => {
-  const regKey = String(registrationStatus || '').toLowerCase();
+  const regKey = String(registrationStatus || 'PENDING').toLowerCase();
   const verKey = String(verificationStatus || 'PENDING').toUpperCase();
 
   const isRegApproved = regKey === 'approved';
   const isRegRejected = regKey === 'rejected';
+  const isRegSuspect = regKey === 'suspect';
 
-  const isVerApproved = isRegApproved && verKey === 'APPROVED';
-  const isVerRejected = isRegApproved && verKey === 'REJECTED';
+  const isVerApproved = verKey === 'APPROVED';
+  const isVerRejected = verKey === 'REJECTED';
 
   // Connecting line 2 (Step 2 -> Step 3) color
-  const line2Color = isRegApproved
-    ? isVerApproved
-      ? 'bg-green-500'
-      : isVerRejected
-      ? 'bg-destructive'
-      : 'bg-amber-500/60'
-    : 'bg-border/40';
+  const line2Color = isVerApproved
+    ? 'bg-green-500'
+    : isVerRejected
+    ? 'bg-destructive'
+    : 'bg-amber-500/60';
 
   return (
     <div className="glass-card flex flex-col gap-3 rounded-2xl border-none p-4">
@@ -91,7 +90,13 @@ const JourneyStepper = ({ registrationStatus, verificationStatus }) => {
         <div className="absolute top-4 inset-x-6 -z-0 flex h-0.5">
           <div
             className={`w-1/2 ${
-              isRegApproved ? 'bg-green-500' : isRegRejected ? 'bg-destructive' : 'bg-amber-500/60'
+              isRegApproved
+                ? 'bg-green-500'
+                : isRegRejected
+                ? 'bg-destructive'
+                : isRegSuspect
+                ? 'bg-purple-600'
+                : 'bg-amber-500/60'
             }`}
           />
           <div className={`w-1/2 transition-colors duration-300 ${line2Color}`} />
@@ -110,7 +115,7 @@ const JourneyStepper = ({ registrationStatus, verificationStatus }) => {
           </div>
         </div>
 
-        {/* Step 2: Registration Approved / Rejected */}
+        {/* Step 2: Registration Status */}
         <div className="relative z-10 flex flex-col items-center gap-1 text-center max-w-[95px]">
           {isRegApproved ? (
             <div className="flex size-8 items-center justify-center rounded-full bg-green-500 text-white shadow-sm ring-4 ring-background">
@@ -118,6 +123,10 @@ const JourneyStepper = ({ registrationStatus, verificationStatus }) => {
             </div>
           ) : isRegRejected ? (
             <div className="flex size-8 items-center justify-center rounded-full bg-destructive text-white shadow-sm ring-4 ring-background">
+              <ShieldAlert className="size-4 stroke-[2.5]" />
+            </div>
+          ) : isRegSuspect ? (
+            <div className="flex size-8 items-center justify-center rounded-full bg-purple-600 text-white shadow-sm ring-4 ring-background">
               <ShieldAlert className="size-4 stroke-[2.5]" />
             </div>
           ) : (
@@ -138,6 +147,10 @@ const JourneyStepper = ({ registrationStatus, verificationStatus }) => {
               <Badge variant="destructive" className="mt-0.5 text-[9px] px-1.5 py-0">
                 Rejected
               </Badge>
+            ) : isRegSuspect ? (
+              <Badge className="bg-purple-500/15 text-purple-700 dark:text-purple-300 border-purple-500/30 mt-0.5 text-[9px] px-1.5 py-0">
+                Suspect
+              </Badge>
             ) : (
               <Badge variant="warning" className="mt-0.5 text-[9px] px-1.5 py-0">
                 Pending
@@ -147,16 +160,8 @@ const JourneyStepper = ({ registrationStatus, verificationStatus }) => {
         </div>
 
         {/* Step 3: On-Site Identity Verification */}
-        <div
-          className={`relative z-10 flex flex-col items-center gap-1 text-center max-w-[95px] ${
-            !isRegApproved ? 'opacity-60' : ''
-          }`}
-        >
-          {!isRegApproved ? (
-            <div className="flex size-8 items-center justify-center rounded-full bg-muted text-muted-foreground shadow-xs ring-4 ring-background">
-              <Clock className="size-4" />
-            </div>
-          ) : isVerApproved ? (
+        <div className="relative z-10 flex flex-col items-center gap-1 text-center max-w-[95px]">
+          {isVerApproved ? (
             <div className="flex size-8 items-center justify-center rounded-full bg-green-500 text-white shadow-sm ring-4 ring-background">
               <Check className="size-4 stroke-[2.5]" />
             </div>
@@ -174,11 +179,7 @@ const JourneyStepper = ({ registrationStatus, verificationStatus }) => {
             <p className="text-[11px] font-semibold leading-tight text-foreground">
               On-Site Verification
             </p>
-            {!isRegApproved ? (
-              <Badge variant="outline" className="mt-0.5 text-[9px] px-1.5 py-0">
-                Pending
-              </Badge>
-            ) : isVerApproved ? (
+            {isVerApproved ? (
               <Badge variant="success" className="mt-0.5 text-[9px] px-1.5 py-0">
                 Approved
               </Badge>
@@ -199,34 +200,31 @@ const JourneyStepper = ({ registrationStatus, verificationStatus }) => {
 };
 
 // ── Rich Registration Pass Link Card ─────────────────────────────────────────
-const EntryPassStatusCard = ({ registrationStatus, verificationStatus }) => {
-  const regKey = String(registrationStatus || '').toLowerCase();
-  const verKey = String(verificationStatus || 'PENDING').toUpperCase();
-
-  const isRegApproved = regKey === 'approved';
-  const isRegRejected = regKey === 'rejected';
-  const isVerApproved = isRegApproved && verKey === 'APPROVED';
+const EntryPassStatusCard = ({ registrationStatus }) => {
+  const regKey = String(registrationStatus || 'PENDING').toLowerCase();
 
   let badgeLabel = 'Pending Review';
   let badgeVariant = 'warning';
+  let badgeClass = '';
   let subtitle = 'Tap to view your registration pass.';
   let Icon = Clock;
 
-  if (isRegRejected) {
+  if (regKey === 'approved') {
+    badgeLabel = 'Approved';
+    badgeVariant = 'success';
+    subtitle = 'Tap to view your approved registration pass.';
+    Icon = BadgeCheck;
+  } else if (regKey === 'rejected') {
     badgeLabel = 'Rejected';
     badgeVariant = 'destructive';
-    subtitle = 'Tap to view your pass status.';
+    subtitle = 'Tap to view your registration pass status.';
     Icon = ShieldAlert;
-  } else if (isVerApproved) {
-    badgeLabel = 'Verified';
-    badgeVariant = 'success';
-    subtitle = 'Tap to view your verified entry pass.';
-    Icon = BadgeCheck;
-  } else if (isRegApproved) {
-    badgeLabel = 'Pass Active';
-    badgeVariant = 'success';
-    subtitle = 'Tap to view your active entry pass.';
-    Icon = BadgeCheck;
+  } else if (regKey === 'suspect') {
+    badgeLabel = 'Suspect';
+    badgeVariant = 'outline';
+    badgeClass = 'bg-purple-500/15 text-purple-700 dark:text-purple-300 border-purple-500/30';
+    subtitle = 'Tap to view your registration pass status.';
+    Icon = ShieldAlert;
   }
 
   return (
@@ -247,7 +245,7 @@ const EntryPassStatusCard = ({ registrationStatus, verificationStatus }) => {
       </div>
 
       <div className="flex items-center gap-2">
-        <Badge variant={badgeVariant} className="shrink-0 gap-1 text-[11px]">
+        <Badge variant={badgeVariant} className={`shrink-0 gap-1 text-[11px] ${badgeClass}`}>
           <Icon className="size-3" />
           {badgeLabel}
         </Badge>
@@ -258,16 +256,60 @@ const EntryPassStatusCard = ({ registrationStatus, verificationStatus }) => {
 };
 
 // ── Dynamic Information Card ─────────────────────────────────────────────────
-const VerificationInfoCard = ({ registrationStatus, verificationStatus, rejectionReason }) => {
-  const regKey = String(registrationStatus || '').toLowerCase();
-  const verKey = String(verificationStatus || 'PENDING').toUpperCase();
+const VerificationInfoCard = ({ registrationStatus, rejectionReason }) => {
+  const regKey = String(registrationStatus || 'PENDING').toLowerCase();
 
-  const isRegApproved = regKey === 'approved';
-  const isRegRejected = regKey === 'rejected';
-  const isVerApproved = isRegApproved && verKey === 'APPROVED';
-  const isVerRejected = isRegApproved && verKey === 'REJECTED';
+  if (regKey === 'approved') {
+    return (
+      <div className="glass-card flex flex-col gap-4 rounded-2xl border border-border p-4.5 bg-background/60 shadow-xs">
+        {/* Header */}
+        <div className="flex items-center gap-2.5">
+          <div className="flex size-8 items-center justify-center rounded-xl bg-green-500/15 text-green-600 dark:text-green-400">
+            <BadgeCheck className="size-4.5" />
+          </div>
+          <h2 className="text-sm font-bold text-foreground">Registration Approved</h2>
+        </div>
 
-  if (isRegRejected) {
+        {/* Short, formatted description paragraphs */}
+        <div className="space-y-2 text-[13px] leading-relaxed text-muted-foreground font-normal">
+          <p>Your registration has been approved successfully.</p>
+          <p>On-Site Identity Verification is still pending and must be completed at the event venue.</p>
+          <p>Please carry your Registration Pass and a valid Government-issued Photo ID.</p>
+        </div>
+
+        {/* Compact Info Callout */}
+        <div className="flex flex-col gap-1 rounded-xl border border-amber-500/25 bg-amber-500/10 p-3 text-amber-950 dark:text-amber-100">
+          <div className="flex items-center gap-1.5 text-xs font-semibold text-amber-700 dark:text-amber-400">
+            <Clock className="size-3.5 shrink-0 text-amber-600 dark:text-amber-400" />
+            <span>Final Step Remaining</span>
+          </div>
+          <p className="text-[12px] leading-normal text-amber-900/90 dark:text-amber-200/90 font-normal">
+            Your registration will be fully completed only after On-Site Identity Verification at the event venue.
+          </p>
+        </div>
+
+        {/* Status & Next Step Rows */}
+        <div className="flex flex-col gap-2 pt-2 border-t border-border/60 text-xs">
+          <div className="flex items-center justify-between">
+            <span className="text-muted-foreground font-medium">Current Status</span>
+            <Badge variant="success" className="gap-1.5 text-[11px] font-semibold py-0.5 px-2">
+              <span className="size-1.5 rounded-full bg-green-500" />
+              Registration Approved
+            </Badge>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-muted-foreground font-medium">Next Step</span>
+            <Badge variant="warning" className="gap-1.5 text-[11px] font-semibold py-0.5 px-2">
+              <span className="size-1.5 rounded-full bg-amber-500" />
+              On-Site Identity Verification (Pending)
+            </Badge>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (regKey === 'rejected') {
     return (
       <div className="glass-card flex flex-col gap-2.5 rounded-2xl border border-destructive/25 bg-destructive/10 p-4 text-destructive">
         <div className="flex items-center gap-2">
@@ -288,61 +330,22 @@ const VerificationInfoCard = ({ registrationStatus, verificationStatus, rejectio
     );
   }
 
-  if (isRegApproved && isVerApproved) {
+  if (regKey === 'suspect') {
     return (
-      <div className="glass-card flex flex-col gap-2.5 rounded-2xl border border-green-500/25 bg-green-500/10 p-4 text-green-900 dark:text-green-200">
+      <div className="glass-card flex flex-col gap-2.5 rounded-2xl border border-purple-500/25 bg-purple-500/10 p-4 text-purple-900 dark:text-purple-200">
         <div className="flex items-center gap-2">
-          <Sparkles className="size-4.5 shrink-0 text-green-600 dark:text-green-400" />
-          <h2 className="text-sm font-bold">🎉 You're All Set!</h2>
+          <ShieldAlert className="size-4.5 shrink-0 text-purple-600 dark:text-purple-400" />
+          <h2 className="text-sm font-bold">Registration Marked as Suspect</h2>
         </div>
-        <p className="text-xs leading-relaxed text-green-800/90 dark:text-green-300/90">
-          Your identity verification has been successfully completed. Your registration is fully
-          verified and you're ready to participate in the event.
-        </p>
-        <div className="mt-1 pt-2 border-t border-green-500/20 text-[11px] font-semibold text-green-700 dark:text-green-400 flex items-center gap-3">
-          <span>✓ Entry Pass Active</span>
-          <span>•</span>
-          <span>✓ Identity Verified</span>
+        <div className="space-y-1.5 text-xs leading-relaxed text-purple-800/90 dark:text-purple-300/90">
+          <p>Your registration has been flagged for additional verification and marked as suspect.</p>
+          <p>Please note that your registration requires additional review. You may be contacted by the administration for further verification.</p>
         </div>
       </div>
     );
   }
 
-  if (isRegApproved && isVerRejected) {
-    return (
-      <div className="glass-card flex flex-col gap-2.5 rounded-2xl border border-destructive/25 bg-destructive/10 p-4 text-destructive">
-        <div className="flex items-center gap-2">
-          <ShieldAlert className="size-4.5 shrink-0 text-destructive" />
-          <h2 className="text-sm font-bold">On-Site Verification Rejected</h2>
-        </div>
-        <p className="text-xs leading-relaxed text-destructive/90">
-          Your on-site identity verification could not be completed. Please contact the event help desk for assistance.
-        </p>
-      </div>
-    );
-  }
-
-  if (isRegApproved) {
-    // Registration Status = Approved and On-Site Verification = Pending
-    return (
-      <div className="glass-card flex flex-col gap-2.5 rounded-2xl border border-amber-500/25 bg-amber-500/10 p-4 text-amber-900 dark:text-amber-200">
-        <div className="flex items-center gap-2">
-          <Clock className="size-4.5 shrink-0 text-amber-600 dark:text-amber-400" />
-          <h2 className="text-sm font-bold">On-Site Verification Pending</h2>
-        </div>
-        <div className="space-y-1.5 text-xs leading-relaxed text-amber-800/90 dark:text-amber-300/90">
-          <p>Your registration has been successfully approved.</p>
-          <p>The final step is the on-site identity verification at the event venue.</p>
-          <p>Please carry your Registration Pass along with a valid Government-issued Photo ID.</p>
-          <p className="font-medium text-amber-900 dark:text-amber-200 pt-0.5">
-            Your QR Code will be activated immediately after your On-Site Identity Verification is approved.
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  // Registration Status = Pending
+  // Default: Pending
   return (
     <div className="glass-card flex flex-col gap-2.5 rounded-2xl border border-amber-500/25 bg-amber-500/10 p-4 text-amber-900 dark:text-amber-200">
       <div className="flex items-center gap-2">
@@ -352,7 +355,6 @@ const VerificationInfoCard = ({ registrationStatus, verificationStatus, rejectio
       <div className="space-y-1.5 text-xs leading-relaxed text-amber-800/90 dark:text-amber-300/90">
         <p>Your registration has been submitted successfully and is currently under review.</p>
         <p>Once your registration is approved, you can proceed to the On-Site Identity Verification at the event venue.</p>
-        <p>Your Entry Pass and QR Code will become available according to the registration and verification process.</p>
       </div>
     </div>
   );
@@ -426,15 +428,11 @@ export const DashboardPage = () => {
       />
 
       {/* 3. Rich Entry Pass Card */}
-      <EntryPassStatusCard
-        registrationStatus={registrationStatus}
-        verificationStatus={verificationStatus}
-      />
+      <EntryPassStatusCard registrationStatus={registrationStatus} />
 
       {/* 4. Dynamic Verification Info Card */}
       <VerificationInfoCard
         registrationStatus={registrationStatus}
-        verificationStatus={verificationStatus}
         rejectionReason={rejectionReason}
       />
     </div>

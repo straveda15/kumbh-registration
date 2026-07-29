@@ -105,6 +105,19 @@ export const TravelInformationStep = ({ code, initialData }) => {
         />
       </WizardField>
 
+      <WizardField
+        label="Expected Holy Bath Date *"
+        error={form.formState.errors.holyBathDate?.message}
+      >
+        <Input
+          className="h-14 px-4"
+          type="date"
+          min={arrivalValue || MIN_ARRIVAL_DATE}
+          max={departureValue || undefined}
+          {...form.register('holyBathDate')}
+        />
+      </WizardField>
+
       <WizardField label="Mode of Travel *" error={form.formState.errors.mode?.message}>
         <Select
           value={form.watch('mode')}
@@ -137,19 +150,6 @@ export const TravelInformationStep = ({ code, initialData }) => {
           />
         </WizardField>
       )}
-
-      <WizardField
-        label="Expected Holy Bath Date *"
-        error={form.formState.errors.holyBathDate?.message}
-      >
-        <Input
-          className="h-14 px-4"
-          type="date"
-          min={arrivalValue || MIN_ARRIVAL_DATE}
-          max={departureValue || undefined}
-          {...form.register('holyBathDate')}
-        />
-      </WizardField>
 
       {form.watch('mode') === 'Private Vehicle' && (
         <WizardField label="Vehicle Number" error={form.formState.errors.vehicleNumber?.message}>
