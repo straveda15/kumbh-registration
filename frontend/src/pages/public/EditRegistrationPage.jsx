@@ -373,7 +373,9 @@ export const EditRegistrationPage = () => {
                 value={selectedState}
                 onValueChange={(value) => {
                   personalForm.setValue('state', value, { shouldValidate: true, shouldDirty: true });
-                  personalForm.setValue('village', '', { shouldValidate: true, shouldDirty: true });
+                  personalForm.setValue('district', '', { shouldValidate: false, shouldDirty: true });
+                  personalForm.setValue('taluka', '', { shouldValidate: false, shouldDirty: true });
+                  personalForm.setValue('village', '', { shouldValidate: false, shouldDirty: true });
                 }}
                 placeholder="Select State"
                 searchPlaceholder="Search states…"
@@ -381,10 +383,34 @@ export const EditRegistrationPage = () => {
               />
             </WizardField>
             <WizardField label="District" error={personalForm.formState.errors.district?.message}>
-              <Input className="h-12 px-4" {...personalForm.register('district')} />
+              <Combobox
+                className="h-12 px-4"
+                options={districtOptions}
+                value={selectedDistrict}
+                onValueChange={(value) => {
+                  personalForm.setValue('district', value, { shouldValidate: false, shouldDirty: true });
+                }}
+                placeholder={selectedState ? 'Select District (Optional)' : 'Select State first'}
+                searchPlaceholder="Search districts…"
+                emptyText="No matching district."
+                allowCustomValue
+                disabled={!selectedState}
+              />
             </WizardField>
             <WizardField label="Taluka" error={personalForm.formState.errors.taluka?.message}>
-              <Input className="h-12 px-4" {...personalForm.register('taluka')} />
+              <Combobox
+                className="h-12 px-4"
+                options={talukaOptions}
+                value={selectedTaluka}
+                onValueChange={(value) => {
+                  personalForm.setValue('taluka', value, { shouldValidate: false, shouldDirty: true });
+                }}
+                placeholder={selectedState ? 'Select Taluka (Optional)' : 'Select State first'}
+                searchPlaceholder="Search talukas…"
+                emptyText="No matching taluka."
+                allowCustomValue
+                disabled={!selectedState}
+              />
             </WizardField>
             <WizardField label="Village / Town" error={personalForm.formState.errors.village?.message}>
               <Combobox
@@ -554,8 +580,23 @@ export const EditRegistrationPage = () => {
                 </SelectContent>
               </Select>
             </WizardField>
-            <WizardField label="Accommodation Address" error={accommodationForm.formState.errors.address?.message}>
+            <WizardField label="Accommodation Address *" error={accommodationForm.formState.errors.address?.message}>
               <Input className="h-12 px-4" {...accommodationForm.register('address')} />
+            </WizardField>
+            <WizardField label="Expected Arrival Date" error={accommodationForm.formState.errors.expectedArrivalDate?.message}>
+              <Input
+                className="h-12 px-4"
+                type="date"
+                {...accommodationForm.register('expectedArrivalDate')}
+              />
+            </WizardField>
+            <WizardField label="Expected Departure Date" error={accommodationForm.formState.errors.expectedDepartureDate?.message}>
+              <Input
+                className="h-12 px-4"
+                type="date"
+                min={accommodationForm.watch('expectedArrivalDate') || undefined}
+                {...accommodationForm.register('expectedDepartureDate')}
+              />
             </WizardField>
           </FieldsGrid>
         </CollapsibleSection>

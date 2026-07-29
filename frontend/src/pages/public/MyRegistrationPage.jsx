@@ -187,6 +187,12 @@ export const MyRegistrationPage = () => {
         <RowList>
           <DataRow label="Type" value={accommodation.type} />
           <DataRow label="Address" value={accommodation.address} />
+          {accommodation.expectedArrivalDate && (
+            <DataRow label="Expected Arrival Date" value={formatDate(accommodation.expectedArrivalDate)} />
+          )}
+          {accommodation.expectedDepartureDate && (
+            <DataRow label="Expected Departure Date" value={formatDate(accommodation.expectedDepartureDate)} />
+          )}
         </RowList>
       </CollapsibleSection>
 
