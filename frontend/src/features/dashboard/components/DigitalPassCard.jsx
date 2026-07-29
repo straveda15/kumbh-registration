@@ -210,13 +210,6 @@ export const DigitalPassCard = forwardRef(
             </div>
           </div>
         )}
-
-        {/* ════ DEMO PURPOSE NOTE ════ */}
-        <div className="py-2.5 text-center border-t border-white/5">
-          <p className="text-[9px] font-medium text-muted-foreground/80 tracking-wide">
-            For Demo Purpose Only
-          </p>
-        </div>
       </div>
     );
   }

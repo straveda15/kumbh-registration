@@ -106,7 +106,7 @@ export const generatePassPdf = async (params = {}, filename = 'digital-pass.pdf'
           position: relative;
         }
 
-        /* ── 1. CENTERED GOVERNMENT HEADER (NO LOGO) ── */
+        /* ── 1. CENTERED GOVERNMENT HEADER (NO LOGO & NO TOP BRAND LINE) ── */
         .gov-header-section {
           width: 100%;
           text-align: center;
@@ -116,26 +116,18 @@ export const generatePassPdf = async (params = {}, filename = 'digital-pass.pdf'
           font-size: 28px;
           font-weight: 800;
           color: #0f172a;
-          line-height: 1.25;
-          margin-bottom: 4px;
-          letter-spacing: 0.14em;
+          line-height: 1.2;
+          margin-bottom: 14px;
+          letter-spacing: 0.02em;
           text-align: center;
         }
         .gov-subtitle-english {
-          font-size: 12.5px;
+          font-size: 13px;
           font-weight: 700;
-          color: #ea580c;
+          color: #4b5563;
           text-transform: uppercase;
-          letter-spacing: 0.26em;
-          margin-bottom: 6px;
-          text-align: center;
-        }
-        .kumbh-pass-brand {
-          font-size: 11px;
-          font-weight: 800;
-          color: #64748b;
-          text-transform: uppercase;
-          letter-spacing: 0.22em;
+          letter-spacing: 0.14em;
+          margin-bottom: 0;
           text-align: center;
         }
 
@@ -350,18 +342,20 @@ export const generatePassPdf = async (params = {}, filename = 'digital-pass.pdf'
         }
         .gov-footer-section {
           text-align: center;
-          padding: 0 16px 12px 16px;
+          padding: 0 16px 16px 16px;
         }
         .footer-notice {
           font-size: 9.5px;
           color: #475569;
           margin-bottom: 4px;
+          text-align: center;
         }
         .footer-time {
           font-size: 9px;
           color: #64748b;
           font-family: monospace;
-          margin-bottom: 4px;
+          margin-bottom: 10px;
+          text-align: center;
         }
         .footer-system {
           font-size: 9.5px;
@@ -369,23 +363,25 @@ export const generatePassPdf = async (params = {}, filename = 'digital-pass.pdf'
           color: #1e293b;
           text-transform: uppercase;
           letter-spacing: 0.06em;
-          margin-bottom: 6px;
+          text-align: center;
+          margin-bottom: 10px;
         }
         .footer-demo {
-          font-size: 9px;
-          font-weight: 500;
-          color: #64748b;
+          font-size: 13px;
+          font-weight: 700;
+          color: #ea580c;
+          text-transform: uppercase;
           text-align: center;
+          letter-spacing: 0.05em;
         }
       </style>
     </head>
     <body>
       <div class="pdf-page-container">
-        <!-- 1. FULL-WIDTH CENTERED GOVERNMENT HEADER -->
+        <!-- 1. FULL-WIDTH CENTERED GOVERNMENT HEADER (NO LOGO, NO PAGE-LEVEL KUMBH BRAND) -->
         <div class="gov-header-section">
           <div class="gov-title-marathi">महाराष्ट्र शासन</div>
           <div class="gov-subtitle-english">Government of Maharashtra</div>
-          <div class="kumbh-pass-brand">Kumbh Registration Pass</div>
         </div>
 
         <!-- 2. SAFFRON DIVIDER WITH ◈ MOTIF -->
@@ -468,8 +464,8 @@ export const generatePassPdf = async (params = {}, filename = 'digital-pass.pdf'
         <div class="gov-footer-section">
           <div class="footer-notice">Please carry this Entry Pass together with a valid Government-issued Photo ID.</div>
           <div class="footer-time">Generated on: ${timestamp}</div>
-          <div class="footer-system">Government of Maharashtra • Kumbh Registration System</div>
-          <div class="footer-demo">For Demo Purpose Only</div>
+          <div class="footer-system">GOVERNMENT OF MAHARASHTRA • KUMBH REGISTRATION SYSTEM</div>
+          <div class="footer-demo">FOR DEMO PURPOSE ONLY</div>
         </div>
       </div>
     </body>
