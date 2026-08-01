@@ -1,9 +1,11 @@
 import * as eventService from '../services/event.service.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { ApiResponse } from '../utils/ApiResponse.js';
+import { getOriginFromRequest } from '../utils/origin.helper.js';
 
 export const createEvent = asyncHandler(async (req, res) => {
-  const event = await eventService.createEvent(req.body, req.admin._id);
+  const origin = getOriginFromRequest(req);
+  const event = await eventService.createEvent(req.body, req.admin._id, origin);
   return new ApiResponse(201, { event }, 'Event created successfully').send(res);
 });
 

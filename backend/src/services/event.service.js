@@ -4,9 +4,9 @@ import { ApiError } from '../utils/ApiError.js';
 import { getPagination, buildPaginationMeta } from '../helpers/pagination.helper.js';
 import * as qrService from './qr.service.js';
 
-export const createEvent = async (payload, createdBy) => {
+export const createEvent = async (payload, createdBy, origin) => {
   const event = await Event.create({ ...payload, createdBy });
-  const qr = await qrService.generateQR({ eventId: event._id }, createdBy);
+  const qr = await qrService.generateQR({ eventId: event._id, origin }, createdBy);
   event.qrCode = qr._id;
   await event.populate('qrCode');
   return event;
