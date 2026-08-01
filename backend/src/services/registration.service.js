@@ -96,7 +96,7 @@ export const startRegistration = async ({ code }, meta = {}) => {
   const cleanCode = (code || '').trim();
   console.log('[QR LOOKUP DEBUG] Decoded QR payload / Incoming request code:', cleanCode);
 
-  // 1. Check if cleanCode matches an existing registration record (by registrationNumber, pilgrimId, _id, userId, or DigitalPass qrCode)
+  // 1. Check if cleanCode matches an existing registration record (by registrationNumber, pilgrimId, _id, userId, DigitalPass qrCode, or Event QR)
   if (cleanCode) {
     const isMongoId = mongoose.Types.ObjectId.isValid(cleanCode);
     const upperCode = cleanCode.toUpperCase();
@@ -116,6 +116,12 @@ export const startRegistration = async ({ code }, meta = {}) => {
     if (passDoc) {
       queryConditions.push({ _id: passDoc.registrationId });
       queryConditions.push({ digitalPassId: passDoc._id });
+    }
+
+    // Also check if cleanCode matches an event QR code (qrId)
+    const qrDoc = await qrService.validateQRForRegistration(cleanCode).catch(() => null);
+    if (qrDoc?._id) {
+      queryConditions.push({ qrId: qrDoc._id });
     }
 
     console.log('[QR LOOKUP DEBUG] Database query being executed:', JSON.stringify(queryConditions));
