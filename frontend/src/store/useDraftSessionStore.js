@@ -1,9 +1,13 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { persist, createJSONStorage } from 'zustand/middleware';
 
 // The only wizard state that needs to survive a reload/closed tab and can't
 // be re-derived from the server. Everything else (stepStatus, completion%,
 // draft contents) lives in TanStack Query, fetched fresh from the API.
+//
+// sessionStorage (not localStorage) is intentional: each browser tab gets
+// its own isolated draft session. A new QR scan in a new tab always starts
+// fresh, while refreshing mid-form in the same tab still resumes correctly.
 export const useDraftSessionStore = create(
   persist(
     (set) => ({
@@ -20,6 +24,7 @@ export const useDraftSessionStore = create(
     }),
     {
       name: 'qr-registration-draft-session',
+      storage: createJSONStorage(() => sessionStorage),
       partialize: (state) => ({
         draftToken: state.draftToken,
         registrationId: state.registrationId,
