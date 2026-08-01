@@ -76,7 +76,7 @@ export const DigitalPassPage = () => {
   );
 
   const profilePhotoDoc = (documents || []).find((doc) => doc.type === 'profilePhoto');
-  const profilePhoto = profilePhotoDoc || (draft?.personalInformation?.data?.photoUrl ? { url: draft.personalInformation.data.photoUrl } : null);
+  const profilePhoto = profilePhotoDoc || (snapshot?.personalInformation?.data?.photoUrl ? { url: snapshot.personalInformation.data.photoUrl } : null);
   const rejectionReason = snapshot?.rejectionReason || snapshot?.statusNote;
 
   const handleShare = async () => {

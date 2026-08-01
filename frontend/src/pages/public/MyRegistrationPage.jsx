@@ -80,7 +80,7 @@ export const MyRegistrationPage = () => {
   const familyMembers = snapshot?.familyMembers ?? [];
   const statusMeta = getRegistrationStatusMeta(snapshot?.registrationStatus);
   const profilePhotoDoc = (documents || []).find((doc) => doc.type === 'profilePhoto');
-  const profilePhoto = profilePhotoDoc || (draft?.personalInformation?.data?.photoUrl ? { url: draft.personalInformation.data.photoUrl } : null);
+  const profilePhoto = profilePhotoDoc || (snapshot?.personalInformation?.data?.photoUrl ? { url: snapshot.personalInformation.data.photoUrl } : null);
   const age = computeAge(personal.dob);
 
   return (
