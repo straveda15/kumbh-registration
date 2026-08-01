@@ -16,7 +16,7 @@ import { useRegistrationSnapshot } from '@/features/registration-wizard/hooks/us
 
 const formatSize = (bytes) => `${Math.max(1, Math.round(bytes / 1024))} KB`;
 
-export const DocumentUploadCard = ({ type, variant = 'default' }) => {
+export const DocumentUploadCard = ({ type, variant = 'default', demoPhotoUrl }) => {
   const meta = DOCUMENT_TYPE_META[type] || { label: type, multiple: false };
   const { data: allDocuments } = useDocuments();
   const { data: snapshot } = useRegistrationSnapshot();
@@ -184,13 +184,15 @@ export const DocumentUploadCard = ({ type, variant = 'default' }) => {
   // Compact single-row layout for Personal Information step
   if (variant === 'compact') {
     const existingDoc = documents[0];
+    const activePhotoUrl = existingDoc?.url || demoPhotoUrl;
+    const hasActivePhoto = Boolean(existingDoc || demoPhotoUrl);
 
     return (
       <div className="glass-card flex w-full flex-col gap-1.5 rounded-xl border border-border px-3 py-2">
         <div className="flex items-center gap-2.5">
           <span className="flex size-12 shrink-0 items-center justify-center self-center overflow-hidden rounded-lg bg-primary/15 text-primary sm:size-14">
-            {existingDoc?.mimeType?.startsWith('image/') ? (
-              <img src={existingDoc.url} alt={meta.label} className="size-full object-cover" />
+            {activePhotoUrl ? (
+              <img src={activePhotoUrl} alt={meta.label} className="size-full object-cover" />
             ) : (
               <Camera className="size-5" />
             )}
