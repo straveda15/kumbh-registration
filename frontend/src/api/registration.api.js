@@ -9,6 +9,9 @@ export const startRegistration = (code) =>
 
 export const getDraft = () => axiosClient.get('/registration/draft');
 
+export const getPassByCode = (code) =>
+  axiosClient.get(`/registration/pass-by-code/${code}`);
+
 // Kept separate from savePersonalInformation — sends only
 // fullName/email/mobile/password/confirmPassword to the dedicated
 // credentials endpoint, never through the generic step-data payload (see

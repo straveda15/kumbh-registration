@@ -445,12 +445,8 @@ export const assembleRegistrationDetail = async (registration) => {
 const isPassActivated = async (digitalPassId) =>
   digitalPassId ? Boolean(await ScanLog.exists({ digitalPassId, result: 'approved' })) : false;
 
-export const getEffectiveVerificationStatus = (digitalPass, registrationStatus) => {
-  if (digitalPass?.verificationStatus) return digitalPass.verificationStatus;
-  const regLow = (registrationStatus || '').toLowerCase();
-  if (regLow === 'approved') return VERIFICATION_STATUS.APPROVED;
-  if (regLow === 'rejected') return VERIFICATION_STATUS.REJECTED;
-  return VERIFICATION_STATUS.PENDING;
+export const getEffectiveVerificationStatus = (digitalPass) => {
+  return digitalPass?.verificationStatus || VERIFICATION_STATUS.PENDING;
 };
 
 // The citizen's own view of their registration. The QR code/image and
@@ -680,17 +676,6 @@ export const approveRegistration = async (id, adminId) => {
   registration.reviewedBy = adminId;
   await registration.save();
 
-  if (registration.digitalPassId) {
-    await DigitalPass.findByIdAndUpdate(registration.digitalPassId, {
-      verificationStatus: VERIFICATION_STATUS.APPROVED,
-    });
-  } else {
-    await DigitalPass.findOneAndUpdate(
-      { registrationId: registration._id },
-      { verificationStatus: VERIFICATION_STATUS.APPROVED }
-    );
-  }
-
   await logActivity({
     actorType: 'admin',
     actorId: adminId,
@@ -738,16 +723,7 @@ export const rejectRegistration = async (id, adminId, reason) => {
   registration.rejectionReason = reason;
   await registration.save();
 
-  if (registration.digitalPassId) {
-    await DigitalPass.findByIdAndUpdate(registration.digitalPassId, {
-      verificationStatus: VERIFICATION_STATUS.REJECTED,
-    });
-  } else {
-    await DigitalPass.findOneAndUpdate(
-      { registrationId: registration._id },
-      { verificationStatus: VERIFICATION_STATUS.REJECTED }
-    );
-  }
+
 
   await logActivity({
     actorType: 'admin',
@@ -1140,6 +1116,76 @@ export const getRegistrationById = async (id) => {
   };
 };
 
+export const getPassByCode = async (code) => {
+  const cleanCode = (code || '').trim();
+  console.log('[PUBLIC PASS LOOKUP DEBUG] Incoming code:', cleanCode);
+
+  if (!cleanCode) {
+    throw ApiError.badRequest('Pass code or registration number is required');
+  }
+
+  const isMongoId = mongoose.Types.ObjectId.isValid(cleanCode);
+  const upperCode = cleanCode.toUpperCase();
+
+  // 1. Try finding DigitalPass directly by qrCode or _id
+  let digitalPassDoc = await DigitalPass.findOne({
+    $or: [{ qrCode: cleanCode }, ...(isMongoId ? [{ _id: cleanCode }] : [])],
+  });
+
+  let registration = null;
+  if (digitalPassDoc) {
+    registration = await Registration.findById(digitalPassDoc.registrationId);
+  } else {
+    // 2. Try finding Registration by registrationNumber, pilgrimId, _id, or userId
+    const regConditions = [
+      { registrationNumber: upperCode },
+      { pilgrimId: upperCode },
+    ];
+    if (isMongoId) {
+      regConditions.push({ _id: cleanCode });
+      regConditions.push({ userId: cleanCode });
+    }
+    registration = await Registration.findOne({ $or: regConditions }).sort({ createdAt: -1 });
+    if (registration) {
+      digitalPassDoc = await DigitalPass.findOne({ registrationId: registration._id });
+    }
+  }
+
+  console.log(
+    '[PUBLIC PASS LOOKUP DEBUG] Result:',
+    registration ? `Found Registration ${registration._id}` : 'NONE'
+  );
+
+  if (!registration) {
+    console.log('[PUBLIC PASS LOOKUP DEBUG] Failure reason: Code', cleanCode, 'did not match any DigitalPass or Registration');
+    throw ApiError.notFound('No registration or digital pass found for this code');
+  }
+
+  const detail = await assembleRegistrationDetail(registration);
+  const passActivated = await isPassActivated(digitalPassDoc?._id);
+  const verificationStatus = getEffectiveVerificationStatus(digitalPassDoc, registration.registrationStatus);
+
+  const formattedPass = {
+    ...(digitalPassDoc ? digitalPassDoc.toObject() : {}),
+    passNumber: digitalPassDoc?.passNumber || registration.registrationNumber,
+    verificationStatus,
+    qrCode: passActivated ? digitalPassDoc?.qrCode : null,
+    qrImage: passActivated ? digitalPassDoc?.qrImage : null,
+    passActivated,
+  };
+
+  return {
+    registrationId: registration._id,
+    registrationStatus: registration.registrationStatus,
+    registrationNumber: registration.registrationNumber,
+    rejectionReason: registration.rejectionReason || registration.statusNote,
+    personalInformation: detail.personalInformation,
+    accommodation: detail.accommodation,
+    digitalPass: formattedPass,
+    event: detail.event,
+  };
+};
+
 export default {
   startRegistration,
   assembleRegistrationDetail,
@@ -1154,6 +1200,7 @@ export default {
   deleteFamilyMember,
   listFamilyMembers,
   getDraft,
+  getPassByCode,
   submitRegistration,
   approveRegistration,
   rejectRegistration,

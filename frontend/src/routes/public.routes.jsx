@@ -70,6 +70,7 @@ export const publicRoutes = [
     element={<AnimatedPage>{protectedPage(DashboardPage)}</AnimatedPage>}
   />,
   <Route key="pass" path="/pass" element={<AnimatedPage>{protectedPage(DigitalPassPage)}</AnimatedPage>} />,
+  <Route key="pass-code" path="/pass/:code" element={<AnimatedPage>{publicPage(DigitalPassPage)}</AnimatedPage>} />,
   <Route
     key="my-registration"
     path="/registration"
