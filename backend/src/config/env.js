@@ -11,7 +11,7 @@ const envSchema = z.object({
   BASE_URL: z.string().url(),
   FRONTEND_URL: z.string().url().optional().or(z.literal('')),
   AADHAAR_FRONTEND_URL: z.string().url().optional().or(z.literal('')),
-  REGISTRATION_FRONTEND_URL: z.string().url(),
+  REGISTRATION_FRONTEND_URL: z.string().url().optional().or(z.literal('')),
 
   MONGO_URI: z.string().min(1, 'MONGO_URI is required'),
 
@@ -67,12 +67,11 @@ export const config = {
   baseUrl: env.BASE_URL,
   frontendUrl: (env.FRONTEND_URL || 'http://localhost:5173').replace(/\/$/, ''),
   aadhaarFrontendUrl: (env.AADHAAR_FRONTEND_URL || '').replace(/\/$/, ''),
-  registrationFrontendUrl: env.REGISTRATION_FRONTEND_URL.replace(/\/$/, ''),
 
   mongoUri: env.MONGO_URI,
 
-  // Array of allowed origins constructed from FRONTEND_URL, AADHAAR_FRONTEND_URL,
-  // and any additional comma-separated CORS_ORIGIN values.
+  // Array of allowed origins constructed dynamically from FRONTEND_URL,
+  // AADHAAR_FRONTEND_URL, and any comma-separated CORS_ORIGIN values.
   corsOrigins: Array.from(
     new Set(
       [
@@ -80,8 +79,9 @@ export const config = {
         env.AADHAAR_FRONTEND_URL,
         ...(env.CORS_ORIGIN ? env.CORS_ORIGIN.split(',') : []),
       ]
-        .filter((url) => Boolean(url && typeof url === 'string' && url.trim()))
+        .flatMap((val) => (val && typeof val === 'string' ? val.split(',') : []))
         .map((url) => url.trim().replace(/\/$/, ''))
+        .filter((url) => Boolean(url))
     )
   ),
 

@@ -6,25 +6,32 @@ import { ApiError } from '../utils/ApiError.js';
 import { generateUniqueCode } from '../utils/generateCode.js';
 import config from '../config/env.js';
 
-// Every event has AT MOST one QR record — enforced here rather than by a
-// unique index, since "replace the existing one" is a normal, expected
-// operation (not a conflict to reject). A second generate/regenerate for an
-// event that already has a QR overwrites that same document in place
-// (new uniqueCode/url/image, scan count reset) instead of creating another
-// row, so the old code stops resolving immediately and there's never more
-// than one QRCode document live per event.
-export const generateQR = async ({ eventId, expiresAt }, createdBy) => {
+// Every Event has EXACTLY ONE permanent Registration QR Code.
+// If a QR code already exists for the event, it is returned immediately
+// without changing the uniqueCode, URL, image, or document.
+// Only events without a QR code generate one permanently using the frontend origin.
+export const generateQR = async ({ eventId, expiresAt, origin }, createdBy) => {
   const event = await Event.findById(eventId);
   if (!event) {
     throw ApiError.notFound('Event not found');
   }
 
+  // If the Event already has a QR code document, return it unchanged immediately.
+  if (event.qrCode) {
+    const existing = await QRCode.findById(event.qrCode);
+    if (existing) {
+      return existing;
+    }
+  }
+
+  // Create a permanent QR code ONCE for this event
   const uniqueCode = generateUniqueCode();
-  // QR codes are opened by a browser, so they must target the registration
-  // frontend app (config.registrationFrontendUrl).
-  const url = `${config.registrationFrontendUrl}/register/${uniqueCode}`;
+  const frontendOrigin = (origin || config.frontendUrl || 'http://localhost:5173').replace(/\/$/, '');
+  const url = `${frontendOrigin}/register/${uniqueCode}`;
   const image = await QRCodeLib.toDataURL(url);
+
   const fields = {
+    eventId,
     uniqueCode,
     eventCode: uniqueCode,
     url,
@@ -38,14 +45,7 @@ export const generateQR = async ({ eventId, expiresAt }, createdBy) => {
     createdBy,
   };
 
-  if (event.qrCode) {
-    const existing = await QRCode.findByIdAndUpdate(event.qrCode, fields, { new: true });
-    if (existing) return existing;
-    // The referenced QR document is gone (e.g. manually deleted) — fall
-    // through and create a fresh one below.
-  }
-
-  const qr = await QRCode.create({ eventId, ...fields });
+  const qr = await QRCode.create(fields);
 
   event.qrCode = qr._id;
   await event.save();
@@ -71,7 +71,8 @@ export const listQR = async ({ eventId, status } = {}) => {
   return QRCode.find(filter).populate('eventId', 'name status').sort({ createdAt: -1 });
 };
 
-export const regenerateQR = async (eventId, createdBy) => generateQR({ eventId }, createdBy);
+// Regenerate endpoint returns the existing QR code unchanged.
+export const regenerateQR = async (eventId, createdBy, origin) => generateQR({ eventId, origin }, createdBy);
 
 // Atomic — avoids the lost-update race a read/increment/save cycle would
 // have under concurrent scans (two requests reading the same scanCount
