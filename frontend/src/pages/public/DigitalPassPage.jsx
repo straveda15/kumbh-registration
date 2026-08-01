@@ -75,7 +75,8 @@ export const DigitalPassPage = () => {
       (registrationStatus && String(registrationStatus).toLowerCase() !== 'draft')
   );
 
-  const profilePhoto = (documents || []).find((doc) => doc.type === 'profilePhoto');
+  const profilePhotoDoc = (documents || []).find((doc) => doc.type === 'profilePhoto');
+  const profilePhoto = profilePhotoDoc || (draft?.personalInformation?.data?.photoUrl ? { url: draft.personalInformation.data.photoUrl } : null);
   const rejectionReason = snapshot?.rejectionReason || snapshot?.statusNote;
 
   const handleShare = async () => {

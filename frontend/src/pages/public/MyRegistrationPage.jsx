@@ -79,7 +79,8 @@ export const MyRegistrationPage = () => {
   const accommodation = snapshot?.accommodation?.data ?? {};
   const familyMembers = snapshot?.familyMembers ?? [];
   const statusMeta = getRegistrationStatusMeta(snapshot?.registrationStatus);
-  const profilePhoto = (documents || []).find((doc) => doc.type === 'profilePhoto');
+  const profilePhotoDoc = (documents || []).find((doc) => doc.type === 'profilePhoto');
+  const profilePhoto = profilePhotoDoc || (draft?.personalInformation?.data?.photoUrl ? { url: draft.personalInformation.data.photoUrl } : null);
   const age = computeAge(personal.dob);
 
   return (

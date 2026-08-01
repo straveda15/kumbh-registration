@@ -75,7 +75,7 @@ export const PersonalInformationStep = ({ code, initialData }) => {
   const saveAccountMutation = useSaveAccountCredentials(code);
 
   const [aadhaarStatus, setAadhaarStatus] = useState('idle'); // 'idle' | 'loading' | 'success' | 'error'
-  const [demoPhotoUrl, setDemoPhotoUrl] = useState(null);
+  const [demoPhotoUrl, setDemoPhotoUrl] = useState(initialData?.photoUrl || null);
   const lastFetchedAadhaarRef = useRef(null);
 
   // Used to check if a profile photo has been uploaded (mandatory).
@@ -116,6 +116,7 @@ export const PersonalInformationStep = ({ code, initialData }) => {
           if (data.pinCode) form.setValue('pinCode', data.pinCode, { shouldValidate: true, shouldDirty: true });
 
           if (data.photo) {
+            form.setValue('photoUrl', data.photo, { shouldValidate: true, shouldDirty: true });
             setDemoPhotoUrl(data.photo);
           }
         })

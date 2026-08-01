@@ -18,7 +18,8 @@ export const useRegistrationPreview = (draft) => {
   const accommodation = draft?.accommodation?.data;
   const familyCount = draft?.familyMembers?.length ?? 0;
 
-  const profilePhoto = (documents || []).find((doc) => doc.type === 'profilePhoto');
+  const profilePhotoDoc = (documents || []).find((doc) => doc.type === 'profilePhoto');
+  const profilePhoto = profilePhotoDoc || (personal?.photoUrl ? { url: personal.photoUrl } : null);
 
   const age = computeAge(personal?.dob);
   const subtitleParts = [

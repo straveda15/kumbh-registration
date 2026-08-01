@@ -87,6 +87,7 @@ export const personalInformationSchema = z
       .trim()
       .min(1, 'PIN code is required')
       .regex(/^[0-9]{6}$/, 'Enter a valid 6-digit PIN code'),
+    photoUrl: z.string().optional(),
   })
   .refine((data) => data.password === data.confirmPassword, {
     message: 'Passwords do not match',
@@ -116,6 +117,7 @@ export const personalInformationDefaults = {
   taluka: '',
   village: '',
   pinCode: '',
+  photoUrl: '',
 };
 
 export default personalInformationSchema;
