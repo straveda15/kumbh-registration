@@ -118,11 +118,8 @@ export const startRegistration = async ({ code }, meta = {}) => {
       queryConditions.push({ digitalPassId: passDoc._id });
     }
 
-    // Also check if cleanCode matches an event QR code (qrId)
+    // Also validate if cleanCode is an event QR code (used later to create a new draft — NOT for resuming)
     const qrDoc = await qrService.validateQRForRegistration(cleanCode).catch(() => null);
-    if (qrDoc?._id) {
-      queryConditions.push({ qrId: qrDoc._id });
-    }
 
     console.log('[QR LOOKUP DEBUG] Database query being executed:', JSON.stringify(queryConditions));
     const existingReg = await Registration.findOne({ $or: queryConditions }).sort({ createdAt: -1 });
