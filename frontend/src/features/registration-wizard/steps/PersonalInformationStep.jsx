@@ -342,7 +342,7 @@ export const PersonalInformationStep = ({ code, initialData }) => {
               />
             </Field>
 
-            <Field label="Preferred Language *" error={form.formState.errors.language?.message}>
+            <Field label="Preferred Language" error={form.formState.errors.language?.message}>
               <Select
                 value={form.watch('language')}
                 onValueChange={(value) =>

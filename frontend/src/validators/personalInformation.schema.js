@@ -76,7 +76,7 @@ export const personalInformationSchema = z
       .regex(/^[0-9]{10}$/, 'Enter a valid 10-digit mobile number')
       .optional()
       .or(z.literal('')),
-    language: z.string().min(1, 'Preferred language is required'),
+    language: z.string().optional().or(z.literal('')),
     address: z.string().trim().optional().or(z.literal('')),
     state: z.string().min(1, 'State is required'),
     district: z.string().trim().optional().or(z.literal('')),
