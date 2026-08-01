@@ -12,27 +12,49 @@ import routes from './routes/index.js';
 
 const app = express();
 
-app.use(helmet());
+logger.info(`[CORS Debug] NODE_ENV: ${config.env}`);
+logger.info(`[CORS Debug] FRONTEND_URL: ${config.frontendUrl}`);
+logger.info(`[CORS Debug] AADHAAR_FRONTEND_URL: ${config.aadhaarFrontendUrl}`);
+logger.info(`[CORS Debug] CORS_ORIGIN: ${process.env.CORS_ORIGIN || ''}`);
+logger.info(`[CORS Debug] config.corsOrigins: ${JSON.stringify(config.corsOrigins)}`);
+
+// CORS middleware MUST execute before helmet, express.json(), routes, and error handlers.
 app.use(
   cors({
-    // Function form, not a static string/array: lets us log a clear reason
-    // when an origin is rejected instead of the browser's opaque "blocked
-    // by CORS policy" with no hint of what the server actually expected.
     origin: (origin, callback) => {
-      // No Origin header at all (curl, server-to-server, same-origin) — not
-      // a cross-origin request, nothing to check.
-      if (!origin) return callback(null, true);
+      // Allow requests with no Origin header (curl, Postman, server-to-server)
+      if (!origin) {
+        logger.info('[CORS Debug] Request with no Origin header allowed');
+        return callback(null, true);
+      }
 
-      if (config.corsOrigins.includes(origin)) return callback(null, true);
+      const cleanOrigin = origin.trim().replace(/\/$/, '');
+      const isAllowed = config.corsOrigins.includes(cleanOrigin);
 
-      logger.warn(
-        `CORS: rejected origin "${origin}" — allowed origin(s): ${config.corsOrigins.join(', ')}`
-      );
-      return callback(new Error(`Origin "${origin}" is not allowed by CORS`));
+      logger.info('[CORS Check]', {
+        incomingOrigin: origin,
+        normalizedOrigin: cleanOrigin,
+        allowedOrigins: config.corsOrigins,
+        isAllowed,
+      });
+
+      if (isAllowed) {
+        return callback(null, true);
+      }
+
+      logger.warn('[CORS Rejected]', {
+        incomingOrigin: origin,
+        normalizedOrigin: cleanOrigin,
+        allowedOrigins: config.corsOrigins,
+      });
+      return callback(null, false);
     },
     credentials: true,
+    optionsSuccessStatus: 204,
   })
 );
+
+app.use(helmet());
 app.use(compression());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));

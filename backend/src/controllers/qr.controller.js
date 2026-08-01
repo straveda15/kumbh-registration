@@ -1,9 +1,11 @@
 import * as qrService from '../services/qr.service.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { ApiResponse } from '../utils/ApiResponse.js';
+import { getOriginFromRequest } from '../utils/origin.helper.js';
 
 export const generateQR = asyncHandler(async (req, res) => {
-  const qr = await qrService.generateQR(req.body, req.admin._id);
+  const origin = getOriginFromRequest(req);
+  const qr = await qrService.generateQR({ ...req.body, origin }, req.admin._id);
   return new ApiResponse(201, { qr }, 'QR code generated successfully').send(res);
 });
 
@@ -13,8 +15,9 @@ export const listQR = asyncHandler(async (req, res) => {
 });
 
 export const regenerateQR = asyncHandler(async (req, res) => {
-  const qr = await qrService.regenerateQR(req.params.eventId, req.admin._id);
-  return new ApiResponse(201, { qr }, 'QR code regenerated successfully').send(res);
+  const origin = getOriginFromRequest(req);
+  const qr = await qrService.regenerateQR(req.params.eventId, req.admin._id, origin);
+  return new ApiResponse(200, { qr }, 'Existing QR code retrieved successfully').send(res);
 });
 
 // Public endpoint: resolving/scanning a QR code by its unique code.
