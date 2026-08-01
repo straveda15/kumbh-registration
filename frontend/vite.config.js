@@ -11,7 +11,7 @@ export default defineConfig({
   plugins: [react(), tailwindcss()],
   server: {
     host: true,
-    port: 5173,
+    port: 5174,
     // If 5173 is taken, Vite silently falls forward to the next free port
     // (5174, 5175, ...) instead of failing — the dev server's real origin
     // then quietly drifts away from whatever FRONTEND_URL/CORS_ORIGIN the

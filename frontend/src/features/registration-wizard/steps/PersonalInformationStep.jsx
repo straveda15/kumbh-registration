@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { motion } from 'framer-motion';
-import { ArrowRight, UserRound } from 'lucide-react';
+import { ArrowRight, UserRound, Loader2, CheckCircle2, XCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -22,6 +22,7 @@ import { DocumentUploadCard } from '@/features/documents/components/DocumentUplo
 import { AutosaveIndicator } from '../components/AutosaveIndicator';
 import { useSavePersonalInformation } from '../hooks/useSavePersonalInformation';
 import { useSaveAccountCredentials } from '../hooks/useSaveAccountCredentials';
+import { fetchDemoAadhaar } from '@/api/registration.api';
 import {
   personalInformationSchema,
   personalInformationDefaults,
@@ -73,6 +74,10 @@ export const PersonalInformationStep = ({ code, initialData }) => {
   const saveMutation = useSavePersonalInformation(code);
   const saveAccountMutation = useSaveAccountCredentials(code);
 
+  const [aadhaarStatus, setAadhaarStatus] = useState('idle'); // 'idle' | 'loading' | 'success' | 'error'
+  const [demoPhotoUrl, setDemoPhotoUrl] = useState(null);
+  const lastFetchedAadhaarRef = useRef(null);
+
   // Used to check if a profile photo has been uploaded (mandatory).
   const { data: allDocuments } = useDocuments();
 
@@ -81,6 +86,50 @@ export const PersonalInformationStep = ({ code, initialData }) => {
     defaultValues: { ...personalInformationDefaults, ...initialData },
     mode: 'onBlur',
   });
+
+  // Auto-fetch Aadhaar demo details when 12 digits are reached
+  const watchAadhaar = form.watch('aadhaarNumber');
+
+  useEffect(() => {
+    const cleanAadhaar = (watchAadhaar || '').replace(/\D/g, '');
+    if (cleanAadhaar.length === 12 && lastFetchedAadhaarRef.current !== cleanAadhaar) {
+      lastFetchedAadhaarRef.current = cleanAadhaar;
+      setAadhaarStatus('loading');
+
+      fetchDemoAadhaar(cleanAadhaar)
+        .then((data) => {
+          setAadhaarStatus('success');
+          toast.success('Aadhaar details retrieved and auto-filled!');
+
+          if (data.fullName) form.setValue('fullName', data.fullName, { shouldValidate: true, shouldDirty: true });
+          if (data.gender) form.setValue('gender', data.gender, { shouldValidate: true, shouldDirty: true });
+          if (data.dob) form.setValue('dob', data.dob, { shouldValidate: true, shouldDirty: true });
+          if (data.mobile) form.setValue('mobile', data.mobile, { shouldValidate: true, shouldDirty: true });
+          if (data.alternateMobile) form.setValue('alternateMobile', data.alternateMobile, { shouldValidate: true, shouldDirty: true });
+          if (data.email) form.setValue('email', data.email, { shouldValidate: true, shouldDirty: true });
+          if (data.nationality) form.setValue('nationality', data.nationality, { shouldValidate: true, shouldDirty: true });
+          if (data.state) form.setValue('state', data.state, { shouldValidate: true, shouldDirty: true });
+          if (data.district) form.setValue('district', data.district, { shouldValidate: true, shouldDirty: true });
+          if (data.taluka) form.setValue('taluka', data.taluka, { shouldValidate: true, shouldDirty: true });
+          if (data.village) form.setValue('village', data.village, { shouldValidate: true, shouldDirty: true });
+          if (data.address) form.setValue('address', data.address, { shouldValidate: true, shouldDirty: true });
+          if (data.pinCode) form.setValue('pinCode', data.pinCode, { shouldValidate: true, shouldDirty: true });
+
+          if (data.photo) {
+            setDemoPhotoUrl(data.photo);
+          }
+        })
+        .catch((error) => {
+          setAadhaarStatus('error');
+          toast.error(error?.message || 'No record found for this Aadhaar number.');
+        });
+    } else if (cleanAadhaar.length < 12) {
+      lastFetchedAadhaarRef.current = null;
+      if (aadhaarStatus !== 'idle') {
+        setAadhaarStatus('idle');
+      }
+    }
+  }, [watchAadhaar, form, aadhaarStatus]);
 
   // Mirrors every keystroke into the live-draft store so LivePreviewPanel
   // can reflect it immediately, instead of only after a field blurs and
@@ -107,9 +156,9 @@ export const PersonalInformationStep = ({ code, initialData }) => {
   const cityList = getAvailableCities(selectedState, selectedDistrict, selectedTaluka);
   const villageOptions = cityList.map((c) => ({ value: c, label: c }));
 
-  // Check whether a profile photo has been uploaded.
+  // Check whether a profile photo has been uploaded or auto-filled.
   const profilePhotoDoc = (allDocuments || []).find((doc) => doc.type === 'profilePhoto');
-  const hasPhoto = Boolean(profilePhotoDoc);
+  const hasPhoto = Boolean(profilePhotoDoc || demoPhotoUrl);
 
   const persist = async () => {
     const isValid = await form.trigger();
@@ -155,6 +204,8 @@ export const PersonalInformationStep = ({ code, initialData }) => {
     if (saved) setActiveStep(NEXT_STEP.key);
   };
 
+  const isLoadingDetails = aadhaarStatus === 'loading';
+
   return (
     <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
       <Card className="glass-card rounded-2xl border-none [--card-spacing:--spacing(4)] sm:rounded-[24px] sm:[--card-spacing:--spacing(6)] lg:[--card-spacing:--spacing(10)]">
@@ -175,7 +226,7 @@ export const PersonalInformationStep = ({ code, initialData }) => {
         <CardContent>
           {/* Profile Photo — mandatory. Show error hint only after touched/attempted next. */}
           <div className="mb-3 sm:mb-4">
-            <DocumentUploadCard type="profilePhoto" variant="compact" />
+            <DocumentUploadCard type="profilePhoto" variant="compact" demoPhotoUrl={demoPhotoUrl} />
             {!hasPhoto && photoTouched && (
               <p className="mt-1.5 text-xs text-[#FF7262] animate-in fade-in duration-200">
                 Profile photo is required. Please upload or capture a photo.
@@ -188,8 +239,25 @@ export const PersonalInformationStep = ({ code, initialData }) => {
             onSubmit={(event) => event.preventDefault()}
             className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3"
           >
+            <Field label="Aadhaar Card Number *" error={form.formState.errors.aadhaarNumber?.message}>
+              <div className="relative flex items-center">
+                <Input
+                  className="h-14 px-4 pr-11"
+                  {...form.register('aadhaarNumber')}
+                  inputMode="numeric"
+                  maxLength={12}
+                  placeholder="12-digit Aadhaar number"
+                />
+                <div className="absolute right-3.5 flex items-center pointer-events-none">
+                  {aadhaarStatus === 'loading' && <Loader2 className="size-5 animate-spin text-primary" />}
+                  {aadhaarStatus === 'success' && <CheckCircle2 className="size-5 text-emerald-500" />}
+                  {aadhaarStatus === 'error' && <XCircle className="size-5 text-destructive" />}
+                </div>
+              </div>
+            </Field>
+
             <Field label="Full Name (as per ID) *" className="lg:col-span-2" error={form.formState.errors.fullName?.message}>
-              <Input className="h-14 px-4" {...form.register('fullName')} placeholder="As per government ID" />
+              <Input className="h-14 px-4" {...form.register('fullName')} disabled={isLoadingDetails} placeholder="As per government ID" />
             </Field>
 
             <Field label="Gender *" error={form.formState.errors.gender?.message}>
@@ -220,16 +288,6 @@ export const PersonalInformationStep = ({ code, initialData }) => {
 
             <Field label="Nationality *" error={form.formState.errors.nationality?.message}>
               <Input className="h-14 px-4" {...form.register('nationality')} />
-            </Field>
-
-            <Field label="Aadhaar Card Number *" error={form.formState.errors.aadhaarNumber?.message}>
-              <Input
-                className="h-14 px-4"
-                {...form.register('aadhaarNumber')}
-                inputMode="numeric"
-                maxLength={12}
-                placeholder="12-digit Aadhaar number"
-              />
             </Field>
 
             <Field label="Mobile Number *" error={form.formState.errors.mobile?.message}>

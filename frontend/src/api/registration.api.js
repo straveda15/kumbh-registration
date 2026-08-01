@@ -12,6 +12,9 @@ export const getDraft = () => axiosClient.get('/registration/draft');
 export const getPassByCode = (code) =>
   axiosClient.get(`/registration/pass-by-code/${code}`);
 
+export const fetchDemoAadhaar = (aadhaar) =>
+  axiosClient.post('/aadhaar-demo', { aadhaar });
+
 // Kept separate from savePersonalInformation — sends only
 // fullName/email/mobile/password/confirmPassword to the dedicated
 // credentials endpoint, never through the generic step-data payload (see
@@ -69,6 +72,7 @@ export default {
   startRegistration,
   getDraft,
   getActivity,
+  fetchDemoAadhaar,
   saveAccountCredentials,
   changeAccountPassword,
   savePersonalInformation,
