@@ -44,7 +44,7 @@ export const PilgrimLoginPage = () => {
   };
 
   return (
-    <AuthLayout icon={UserRound} title="Pilgrim Login" subtitle="Sign in to your account">
+    <AuthLayout icon={UserRound} title="Pilgrim Login" subtitle="Sign in to your account" showBack={false}>
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="registrationNumber">Registration Number</Label>

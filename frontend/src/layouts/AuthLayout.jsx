@@ -3,13 +3,13 @@ import { BackButton } from '@/components/shared/BackButton';
 import { getRegistrationReturnPath } from '@/utils/registrationReturnPath';
 
 // Shared centered-card chrome for login pages
-export const AuthLayout = ({ icon: Icon, title, subtitle, children, backTo, backLabel }) => {
+export const AuthLayout = ({ icon: Icon, title, subtitle, children, backTo, backLabel, showBack = true }) => {
   const returnPath = getRegistrationReturnPath();
   const registrationTarget = backTo || returnPath || '/scan';
 
   return (
     <div className="mx-auto flex min-h-screen w-full max-w-md flex-col items-center justify-center gap-6 px-4">
-      <BackButton to={registrationTarget} label={backLabel || 'Back to Home'} className="self-start" />
+      {showBack && <BackButton to={registrationTarget} label={backLabel || 'Back to Home'} className="self-start" />}
       <motion.div
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
