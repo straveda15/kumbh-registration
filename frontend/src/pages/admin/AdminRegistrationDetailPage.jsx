@@ -73,7 +73,8 @@ export const AdminRegistrationDetailPage = () => {
   const { registration, event, qr, personal, address, emergencyContact, medicalInformation, travelInformation, accommodation, familyMembers, digitalPass } = data;
 
   const status = registration.registrationStatus;
-  const profilePhoto = (documents || []).find((doc) => doc.type === 'profilePhoto');
+  const profilePhotoDoc = (documents || []).find((doc) => doc.type === 'profilePhoto');
+  const profilePhoto = profilePhotoDoc || (registration?.personalInformation?.data?.photoUrl ? { url: registration.personalInformation.data.photoUrl } : null);
 
   const setTab = (tab) => setSearchParams({ tab });
 
