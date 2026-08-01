@@ -57,7 +57,7 @@ export const WizardPage = () => {
   // their dashboard instead.
   useEffect(() => {
     if (draft?.registrationStatus && !EDITABLE_STATUSES.includes(draft.registrationStatus)) {
-      navigate('/pass', { replace: true });
+      navigate('/dashboard', { replace: true });
     }
   }, [draft?.registrationStatus, navigate]);
 
