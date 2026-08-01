@@ -9,14 +9,13 @@ const envSchema = z.object({
   API_VERSION: z.string().default('v1'),
   // Backend origin only. It must never be embedded in browser-facing QR links.
   BASE_URL: z.string().url(),
-  FRONTEND_URL: z.string().url().default('http://localhost:5173'),
+  FRONTEND_URL: z.string().url().optional().or(z.literal('')),
+  AADHAAR_FRONTEND_URL: z.string().url().optional().or(z.literal('')),
+  REGISTRATION_FRONTEND_URL: z.string().url(),
 
   MONGO_URI: z.string().min(1, 'MONGO_URI is required'),
 
-  // Optional: when unset, derived from FRONTEND_URL below (the common
-  // single-frontend case) instead of needing to be kept in sync by hand.
-  // Accepts a comma-separated list for setups with more than one allowed
-  // origin (e.g. FRONTEND_URL plus a LAN IP for testing on a phone).
+  // Optional: comma-separated list for setups with additional allowed origins.
   CORS_ORIGIN: z.string().optional(),
 
   JWT_ACCESS_SECRET: z.string().min(10, 'JWT_ACCESS_SECRET is required'),
@@ -66,18 +65,25 @@ export const config = {
   port: env.PORT,
   apiVersion: env.API_VERSION,
   baseUrl: env.BASE_URL,
-  frontendUrl: env.FRONTEND_URL.replace(/\/$/, ''),
+  frontendUrl: (env.FRONTEND_URL || 'http://localhost:5173').replace(/\/$/, ''),
+  aadhaarFrontendUrl: (env.AADHAAR_FRONTEND_URL || '').replace(/\/$/, ''),
+  registrationFrontendUrl: env.REGISTRATION_FRONTEND_URL.replace(/\/$/, ''),
 
   mongoUri: env.MONGO_URI,
 
-  // Array of allowed origins, not a single string — CORS_ORIGIN may list
-  // several comma-separated origins; when it's unset, FRONTEND_URL is the
-  // only source of truth instead of two env vars that can silently drift
-  // out of sync with each other (see app.js for how this is enforced).
-  corsOrigins: (env.CORS_ORIGIN ?? env.FRONTEND_URL)
-    .split(',')
-    .map((origin) => origin.trim().replace(/\/$/, ''))
-    .filter(Boolean),
+  // Array of allowed origins constructed from FRONTEND_URL, AADHAAR_FRONTEND_URL,
+  // and any additional comma-separated CORS_ORIGIN values.
+  corsOrigins: Array.from(
+    new Set(
+      [
+        env.FRONTEND_URL,
+        env.AADHAAR_FRONTEND_URL,
+        ...(env.CORS_ORIGIN ? env.CORS_ORIGIN.split(',') : []),
+      ]
+        .filter((url) => Boolean(url && typeof url === 'string' && url.trim()))
+        .map((url) => url.trim().replace(/\/$/, ''))
+    )
+  ),
 
   jwt: {
     accessSecret: env.JWT_ACCESS_SECRET,

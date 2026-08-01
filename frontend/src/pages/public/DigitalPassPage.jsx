@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import { Printer, Download, Share2, RotateCcw, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useRegistrationSnapshot } from '@/features/registration-wizard/hooks/useRegistrationSnapshot';
@@ -9,13 +10,35 @@ import { useDocuments } from '@/features/documents/hooks/useDocuments';
 import { DigitalPassCard } from '@/features/dashboard/components/DigitalPassCard';
 import { generatePassPdf } from '@/utils/generatePassPdf';
 import { getRegistrationStatusMeta } from '@/utils/registrationStatus';
+import { getPassByCode } from '@/api/registration.api';
 
 export const DigitalPassPage = () => {
-  const { data: snapshot, isPending, isError, error, refetch, hasSession } = useRegistrationSnapshot();
-  const { data: documents } = useDocuments();
+  const { code } = useParams();
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
 
-  if (!hasSession) {
+  // 1. Session query (for logged-in user viewing /pass)
+  const sessionResult = useRegistrationSnapshot();
+
+  // 2. Public pass query (for mobile QR scans of /pass/:code)
+  const publicPassResult = useQuery({
+    queryKey: ['public-pass', code],
+    queryFn: () => getPassByCode(code),
+    enabled: Boolean(code),
+    retry: false,
+    staleTime: 0,
+  });
+
+  const { data: documents } = useDocuments();
+
+  const isPublicView = Boolean(code);
+  const snapshot = isPublicView ? publicPassResult.data : sessionResult.data;
+  const isPending = isPublicView ? publicPassResult.isPending : sessionResult.isPending;
+  const isError = isPublicView ? publicPassResult.isError : sessionResult.isError;
+  const error = isPublicView ? publicPassResult.error : sessionResult.error;
+  const refetch = isPublicView ? publicPassResult.refetch : sessionResult.refetch;
+  const hasSession = isPublicView ? true : sessionResult.hasSession;
+
+  if (!hasSession && !isPublicView) {
     return (
       <div className="mx-auto flex min-h-[70vh] w-full max-w-xl flex-col items-center justify-center gap-4 px-4 text-center">
         <p className="text-sm text-muted-foreground">No registration found in this browser.</p>
@@ -37,7 +60,7 @@ export const DigitalPassPage = () => {
   if (isError) {
     return (
       <div className="mx-auto flex min-h-[70vh] w-full max-w-md flex-col items-center justify-center gap-4 px-4 text-center">
-        <p className="text-sm text-muted-foreground">{error?.message}</p>
+        <p className="text-sm text-muted-foreground">{error?.message || 'Could not load pass details'}</p>
         <Button variant="outline" size="sm" onClick={() => refetch()} className="gap-1.5">
           <RotateCcw className="size-3.5" /> Try again
         </Button>
@@ -47,7 +70,7 @@ export const DigitalPassPage = () => {
 
   const digitalPass = snapshot?.digitalPass;
   const registrationStatus = snapshot?.registrationStatus;
-  const isSubmitted = Boolean(
+  const isSubmitted = isPublicView || Boolean(
     snapshot?.registrationNumber ||
       (registrationStatus && String(registrationStatus).toLowerCase() !== 'draft')
   );
@@ -110,7 +133,7 @@ export const DigitalPassPage = () => {
         </div>
       ) : (
         <>
-          {/* On-screen Entry Pass (100% UNCHANGED) */}
+          {/* On-screen Entry Pass */}
           <DigitalPassCard
             digitalPass={digitalPass || { verificationStatus: 'PENDING' }}
             personal={snapshot?.personalInformation?.data}
@@ -123,7 +146,7 @@ export const DigitalPassPage = () => {
             rejectionReason={rejectionReason}
           />
 
-          {/* ── Action buttons directly below card in normal flow ── */}
+          {/* ── Action buttons ── */}
           <div className="flex items-center gap-2 print:hidden">
             <Button
               variant="outline"

@@ -24,8 +24,9 @@ import {
 
 const router = Router();
 
-// Public: the only entry point into the wizard, right after a QR scan.
+// Public: the entry point into the wizard or direct pass lookup.
 router.post('/start', validate(startRegistrationSchema), registrationController.startRegistration);
+router.get('/pass-by-code/:code', registrationController.getPassByCode);
 
 // Session-token protected: the citizen registration wizard + dashboard.
 router.get('/draft', verifyDraftAccess, registrationController.getDraft);

@@ -18,6 +18,11 @@ export const getDraft = asyncHandler(async (req, res) => {
   return new ApiResponse(200, draft, 'Draft fetched successfully').send(res);
 });
 
+export const getPassByCode = asyncHandler(async (req, res) => {
+  const passData = await registrationService.getPassByCode(req.params.code);
+  return new ApiResponse(200, passData, 'Pass fetched successfully').send(res);
+});
+
 // Sets the pilgrim's login credentials (email/mobile/password) — kept
 // separate from savePersonalInformation below so a plaintext password
 // never passes through the generic stepDataSchema/PersonalInformation.data

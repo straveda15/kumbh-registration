@@ -20,10 +20,9 @@ export const generateQR = async ({ eventId, expiresAt }, createdBy) => {
   }
 
   const uniqueCode = generateUniqueCode();
-  // QR codes are opened by a browser, so they must target the React app,
-  // not the Express API origin. FRONTEND_URL can be set to the host LAN IP
-  // for a physical phone on the same Wi-Fi network.
-  const url = `${config.frontendUrl}/register/${uniqueCode}`;
+  // QR codes are opened by a browser, so they must target the registration
+  // frontend app (config.registrationFrontendUrl).
+  const url = `${config.registrationFrontendUrl}/register/${uniqueCode}`;
   const image = await QRCodeLib.toDataURL(url);
   const fields = {
     uniqueCode,

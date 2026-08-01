@@ -7,6 +7,7 @@ import dashboardRoutes from './dashboard.routes.js';
 import adminRoutes from './admin.routes.js';
 import documentRoutes from './document.routes.js';
 import pilgrimAuthRoutes from './pilgrimAuth.routes.js';
+import aadhaarRoutes from '../modules/aadhaar/aadhaar.routes.js';
 
 const router = Router();
 
@@ -22,5 +23,6 @@ router.use('/dashboard', dashboardRoutes);
 router.use('/admin', adminRoutes);
 router.use('/documents', documentRoutes);
 router.use('/pilgrim', pilgrimAuthRoutes);
+router.use('/aadhaar-demo', aadhaarRoutes);
 
 export default router;
