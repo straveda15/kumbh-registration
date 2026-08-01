@@ -205,6 +205,7 @@ export const PersonalInformationStep = ({ code, initialData }) => {
   };
 
   const isLoadingDetails = aadhaarStatus === 'loading';
+  const isAutofilled = aadhaarStatus === 'success';
 
   return (
     <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
@@ -257,11 +258,12 @@ export const PersonalInformationStep = ({ code, initialData }) => {
             </Field>
 
             <Field label="Full Name (as per ID) *" className="lg:col-span-2" error={form.formState.errors.fullName?.message}>
-              <Input className="h-14 px-4" {...form.register('fullName')} disabled={isLoadingDetails} placeholder="As per government ID" />
+              <Input className="h-14 px-4" {...form.register('fullName')} disabled={isLoadingDetails || isAutofilled} placeholder="As per government ID" />
             </Field>
 
             <Field label="Gender *" error={form.formState.errors.gender?.message}>
               <Select
+                disabled={isLoadingDetails || isAutofilled}
                 value={form.watch('gender')}
                 onValueChange={(value) =>
                   form.setValue('gender', value, { shouldValidate: true, shouldDirty: true })
@@ -279,7 +281,7 @@ export const PersonalInformationStep = ({ code, initialData }) => {
             </Field>
 
             <Field label="Date of Birth *" error={form.formState.errors.dob?.message}>
-              <Input className="h-14 px-4" type="date" max={yesterdayStr} {...form.register('dob')} />
+              <Input className="h-14 px-4" type="date" max={yesterdayStr} {...form.register('dob')} disabled={isLoadingDetails || isAutofilled} />
             </Field>
 
             <Field label="Age">
@@ -287,7 +289,7 @@ export const PersonalInformationStep = ({ code, initialData }) => {
             </Field>
 
             <Field label="Nationality *" error={form.formState.errors.nationality?.message}>
-              <Input className="h-14 px-4" {...form.register('nationality')} />
+              <Input className="h-14 px-4" {...form.register('nationality')} disabled={isLoadingDetails || isAutofilled} />
             </Field>
 
             <Field label="Mobile Number *" error={form.formState.errors.mobile?.message}>
@@ -296,6 +298,7 @@ export const PersonalInformationStep = ({ code, initialData }) => {
                 {...form.register('mobile')}
                 inputMode="numeric"
                 maxLength={10}
+                disabled={isLoadingDetails || isAutofilled}
                 onInput={(e) => {
                   e.target.value = e.target.value.replace(/\D/g, '').slice(0, 10);
                 }}
@@ -309,6 +312,7 @@ export const PersonalInformationStep = ({ code, initialData }) => {
                 {...form.register('alternateMobile')}
                 inputMode="numeric"
                 maxLength={10}
+                disabled={isLoadingDetails || isAutofilled}
                 onInput={(e) => {
                   e.target.value = e.target.value.replace(/\D/g, '').slice(0, 10);
                 }}
@@ -317,7 +321,7 @@ export const PersonalInformationStep = ({ code, initialData }) => {
             </Field>
 
             <Field label="Email *" error={form.formState.errors.email?.message}>
-              <Input className="h-14 px-4" type="email" {...form.register('email')} placeholder="you@example.com" />
+              <Input className="h-14 px-4" type="email" {...form.register('email')} disabled={isLoadingDetails || isAutofilled} placeholder="you@example.com" />
             </Field>
 
             <Field label="Password *" error={form.formState.errors.password?.message}>
@@ -374,6 +378,7 @@ export const PersonalInformationStep = ({ code, initialData }) => {
                 placeholder="Select State"
                 searchPlaceholder="Search states…"
                 emptyText="No matching state or UT."
+                disabled={isLoadingDetails || isAutofilled}
               />
             </Field>
 
@@ -389,7 +394,7 @@ export const PersonalInformationStep = ({ code, initialData }) => {
                 searchPlaceholder="Search districts…"
                 emptyText="No matching district."
                 allowCustomValue
-                disabled={!selectedState}
+                disabled={!selectedState || isLoadingDetails || isAutofilled}
               />
             </Field>
 
@@ -405,7 +410,7 @@ export const PersonalInformationStep = ({ code, initialData }) => {
                 searchPlaceholder="Search talukas…"
                 emptyText="No matching taluka."
                 allowCustomValue
-                disabled={!selectedState}
+                disabled={!selectedState || isLoadingDetails || isAutofilled}
               />
             </Field>
 
@@ -421,7 +426,7 @@ export const PersonalInformationStep = ({ code, initialData }) => {
                 searchPlaceholder="Search village or town…"
                 emptyText="No matching village — pick 'Use' below to enter as typed."
                 allowCustomValue
-                disabled={!selectedState}
+                disabled={!selectedState || isLoadingDetails || isAutofilled}
               />
             </Field>
 
@@ -431,11 +436,11 @@ export const PersonalInformationStep = ({ code, initialData }) => {
               className="lg:col-span-2"
               error={form.formState.errors.address?.message}
             >
-              <Input className="h-14 px-4" {...form.register('address')} placeholder="House / street (optional)" />
+              <Input className="h-14 px-4" {...form.register('address')} disabled={isLoadingDetails || isAutofilled} placeholder="House / street (optional)" />
             </Field>
 
             <Field label="PIN Code *" error={form.formState.errors.pinCode?.message}>
-              <Input className="h-14 px-4" {...form.register('pinCode')} inputMode="numeric" placeholder="6-digit PIN" />
+              <Input className="h-14 px-4" {...form.register('pinCode')} disabled={isLoadingDetails || isAutofilled} inputMode="numeric" placeholder="6-digit PIN" />
             </Field>
           </form>
         </CardContent>

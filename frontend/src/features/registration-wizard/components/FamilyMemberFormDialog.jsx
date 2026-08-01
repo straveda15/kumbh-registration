@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
-import { Camera, ImagePlus, Trash2, Loader2 } from 'lucide-react';
+import { Camera, ImagePlus, Trash2, Loader2, CheckCircle2, XCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   Dialog,
@@ -22,6 +22,8 @@ import { ImageCropDialog } from '@/features/documents/components/ImageCropDialog
 import { WebcamCaptureDialog } from '@/features/documents/components/WebcamCaptureDialog';
 import { validateDocumentFile } from '@/validators/document.schema';
 import { useUploadDocument } from '@/features/documents/hooks/useUploadDocument';
+import { fetchDemoAadhaar } from '@/api/registration.api';
+import { computeAge } from '@/utils/computeAge';
 
 export const FamilyMemberFormDialog = ({ open, onOpenChange, initialData, onSubmit, isSaving }) => {
   const inputRef = useRef(null);
@@ -32,6 +34,9 @@ export const FamilyMemberFormDialog = ({ open, onOpenChange, initialData, onSubm
   const [webcamOpen, setWebcamOpen] = useState(false);
   const [submittedAttempt, setSubmittedAttempt] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+
+  const [aadhaarStatus, setAadhaarStatus] = useState('idle'); // 'idle' | 'loading' | 'success' | 'error'
+  const lastFetchedAadhaarRef = useRef(null);
 
   const isMobileDevice = typeof window !== 'undefined' && /Mobi|Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 
@@ -57,6 +62,8 @@ export const FamilyMemberFormDialog = ({ open, onOpenChange, initialData, onSubm
       setCropSrc(null);
       setCropOpen(false);
       setUploadProgress(0);
+      setAadhaarStatus('idle');
+      lastFetchedAadhaarRef.current = null;
       form.reset({ ...familyMemberDefaults, ...initialData });
       if (inputRef.current) inputRef.current.value = '';
       if (cameraInputRef.current) cameraInputRef.current.value = '';
@@ -64,8 +71,48 @@ export const FamilyMemberFormDialog = ({ open, onOpenChange, initialData, onSubm
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, initialData]);
 
+  // Auto-fetch Aadhaar details for family member when 12 digits are reached
+  const watchAadhaar = form.watch('aadhaarNumber');
+
+  useEffect(() => {
+    const cleanAadhaar = (watchAadhaar || '').replace(/\D/g, '');
+    if (cleanAadhaar.length === 12 && lastFetchedAadhaarRef.current !== cleanAadhaar) {
+      lastFetchedAadhaarRef.current = cleanAadhaar;
+      setAadhaarStatus('loading');
+
+      fetchDemoAadhaar(cleanAadhaar)
+        .then((data) => {
+          setAadhaarStatus('success');
+          toast.success('Family member Aadhaar details auto-filled!');
+
+          if (data.fullName) form.setValue('fullName', data.fullName, { shouldValidate: true, shouldDirty: true });
+          if (data.gender) form.setValue('gender', data.gender, { shouldValidate: true, shouldDirty: true });
+          if (data.dob) {
+            const calculatedAge = computeAge(data.dob);
+            if (calculatedAge) {
+              form.setValue('age', String(calculatedAge), { shouldValidate: true, shouldDirty: true });
+            }
+          }
+          if (data.photo) {
+            form.setValue('photoUrl', data.photo, { shouldValidate: true, shouldDirty: true });
+          }
+        })
+        .catch((error) => {
+          setAadhaarStatus('error');
+          toast.error(error?.message || 'No record found for this Aadhaar number.');
+        });
+    } else if (cleanAadhaar.length < 12) {
+      lastFetchedAadhaarRef.current = null;
+      if (aadhaarStatus !== 'idle') {
+        setAadhaarStatus('idle');
+      }
+    }
+  }, [watchAadhaar, form, aadhaarStatus]);
+
   const photoUrl = form.watch('photoUrl');
   const isUploadingPhoto = uploadMutation.isPending;
+  const isLoadingDetails = aadhaarStatus === 'loading';
+  const isAutofilled = aadhaarStatus === 'success';
 
   const handleFileSelected = (event) => {
     const file = event.target.files?.[0];
@@ -236,8 +283,28 @@ export const FamilyMemberFormDialog = ({ open, onOpenChange, initialData, onSubm
             )}
           </div>
 
+          <WizardField label="Aadhaar Card Number *" error={form.formState.errors.aadhaarNumber?.message}>
+            <div className="relative flex items-center">
+              <Input
+                className="h-14 px-4 pr-11"
+                {...form.register('aadhaarNumber')}
+                inputMode="numeric"
+                maxLength={12}
+                onInput={(e) => {
+                  e.target.value = e.target.value.replace(/\D/g, '').slice(0, 12);
+                }}
+                placeholder="12-digit Aadhaar number"
+              />
+              <div className="absolute right-3.5 flex items-center pointer-events-none">
+                {aadhaarStatus === 'loading' && <Loader2 className="size-5 animate-spin text-primary" />}
+                {aadhaarStatus === 'success' && <CheckCircle2 className="size-5 text-emerald-500" />}
+                {aadhaarStatus === 'error' && <XCircle className="size-5 text-destructive" />}
+              </div>
+            </div>
+          </WizardField>
+
           <WizardField label="Full Name *" error={form.formState.errors.fullName?.message}>
-            <Input className="h-14 px-4" {...form.register('fullName')} placeholder="Full name" />
+            <Input className="h-14 px-4" {...form.register('fullName')} disabled={isLoadingDetails || isAutofilled} placeholder="Full name" />
           </WizardField>
 
           <WizardField label="Relationship *" error={form.formState.errors.relationship?.message}>
@@ -267,25 +334,14 @@ export const FamilyMemberFormDialog = ({ open, onOpenChange, initialData, onSubm
               min="0"
               max="120"
               {...form.register('age')}
+              disabled={isLoadingDetails || isAutofilled}
               placeholder="0 to 120"
-            />
-          </WizardField>
-
-          <WizardField label="Aadhaar Card Number *" error={form.formState.errors.aadhaarNumber?.message}>
-            <Input
-              className="h-14 px-4"
-              {...form.register('aadhaarNumber')}
-              inputMode="numeric"
-              maxLength={12}
-              onInput={(e) => {
-                e.target.value = e.target.value.replace(/\D/g, '').slice(0, 12);
-              }}
-              placeholder="12-digit Aadhaar number"
             />
           </WizardField>
 
           <WizardField label="Gender *" error={form.formState.errors.gender?.message}>
             <Select
+              disabled={isLoadingDetails || isAutofilled}
               value={form.watch('gender')}
               onValueChange={(value) =>
                 form.setValue('gender', value, { shouldValidate: true, shouldDirty: true })
