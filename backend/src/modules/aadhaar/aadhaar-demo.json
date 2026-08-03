@@ -194,7 +194,7 @@
     "taluka": "Haveli",
     "village": "Pune",
     "pinCode": "411030",
-    "photo": "/demo-photos/photo10.jpg",
+    "photo": "/demo-photos/photo8.jpg",
     "occupation": "Accountant",
     "maritalStatus": "Single",
     "bloodGroup": "A+"
@@ -214,7 +214,7 @@
     "taluka": "Shaikpet",
     "village": "Hyderabad",
     "pinCode": "500033",
-    "photo": "/demo-photos/photo11.jpg",
+    "photo": "/demo-photos/photo12.jpg",
     "occupation": "Entrepreneur",
     "maritalStatus": "Married",
     "bloodGroup": "O+"
@@ -234,7 +234,7 @@
     "taluka": "Mylapore",
     "village": "Chennai",
     "pinCode": "600004",
-    "photo": "/demo-photos/photo12.jpg",
+    "photo": "/demo-photos/photo11.jpg",
     "occupation": "Homemaker",
     "maritalStatus": "Married",
     "bloodGroup": "AB-"
@@ -254,7 +254,7 @@
     "taluka": "Vadodara",
     "village": "Vadodara",
     "pinCode": "390007",
-    "photo": "/demo-photos/photo8.jpg",
+    "photo": "/demo-photos/photo10.jpg",
     "occupation": "Merchant",
     "maritalStatus": "Married",
     "bloodGroup": "B+"
@@ -454,7 +454,7 @@
     "taluka": "Nagar City",
     "village": "Ahmednagar",
     "pinCode": "414005",
-    "photo": "/demo-photos/photo3.jpg",
+    "photo": "/demo-photos/photo5.jpg",
     "occupation": "NA",
     "maritalStatus": "Single",
     "bloodGroup": "O+"
@@ -595,6 +595,26 @@
     "village": "Nashik",
     "pinCode": "422003",
     "photo": "/demo-photos/photo5.jpg",
+    "occupation": "NA",
+    "maritalStatus": "Married",
+    "bloodGroup": "B+"
+  },
+  {
+    "aadhaar": "680696727582" ,
+    "fullName": "Shubham Bhimrao Mahanor",
+    "gender": "male",
+    "dob": "1995-02-07",
+    "mobile": "88662038302",
+    "alternateMobile": "",
+    "email": "shubhamahanor95@gmail.com",
+    "nationality": "Indian",
+    "address": "06 Prabhat Vandan, Jadhav Colony,Panchvati, Nashik",
+    "state": "Maharashtra",
+    "district": "Nashik",
+    "taluka": "Nashik",
+    "village": "Nashik",
+    "pinCode": "422003",
+    "photo": "/demo-photos/photo1.jpg",
     "occupation": "NA",
     "maritalStatus": "Married",
     "bloodGroup": "B+"
