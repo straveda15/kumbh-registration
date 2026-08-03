@@ -254,7 +254,7 @@
     "taluka": "Vadodara",
     "village": "Vadodara",
     "pinCode": "390007",
-    "photo": "/demo-photos/photo13.jpg",
+    "photo": "/demo-photos/photo8.jpg",
     "occupation": "Merchant",
     "maritalStatus": "Married",
     "bloodGroup": "B+"
@@ -274,7 +274,7 @@
     "taluka": "Vasai",
     "village": "Vasai",
     "pinCode": "401202",
-    "photo": "/demo-photos/photo14.jpg",
+    "photo": "/demo-photos/photo8.jpg",
     "occupation": "Student",
     "maritalStatus": "Single",
     "bloodGroup": "O+"
@@ -294,7 +294,7 @@
     "taluka": "Lucknow",
     "village": "Lucknow",
     "pinCode": "226010",
-    "photo": "/demo-photos/photo15.jpg",
+    "photo": "/demo-photos/photo12.jpg",
     "occupation": "Consultant",
     "maritalStatus": "Married",
     "bloodGroup": "A+"
@@ -314,7 +314,7 @@
     "taluka": "Chhatrapati Sambhajinagar",
     "village": "Chhatrapati Sambhajinagar",
     "pinCode": "431001",
-    "photo": "/demo-photos/photo16.jpg",
+    "photo": "/demo-photos/photo11.jpg",
     "occupation": "Graphic Designer",
     "maritalStatus": "Married",
     "bloodGroup": "B+"
@@ -334,7 +334,7 @@
     "taluka": "Bhubaneswar",
     "village": "Bhubaneswar",
     "pinCode": "751007",
-    "photo": "/demo-photos/photo17.jpg",
+    "photo": "/demo-photos/photo5.jpg",
     "occupation": "Government Servant",
     "maritalStatus": "Married",
     "bloodGroup": "O-"
@@ -354,7 +354,7 @@
     "taluka": "Vasant Vihar",
     "village": "Delhi",
     "pinCode": "110070",
-    "photo": "/demo-photos/photo18.jpg",
+    "photo": "/demo-photos/photo4.jpg",
     "occupation": "Marketing Executive",
     "maritalStatus": "Single",
     "bloodGroup": "A+"
@@ -374,7 +374,7 @@
     "taluka": "Tiswadi",
     "village": "Panaji",
     "pinCode": "403001",
-    "photo": "/demo-photos/photo19.jpg",
+    "photo": "/demo-photos/photo1.jpg",
     "occupation": "Hotelier",
     "maritalStatus": "Married",
     "bloodGroup": "B+"
@@ -394,7 +394,7 @@
     "taluka": "Ahmedabad City",
     "village": "Ahmedabad",
     "pinCode": "380009",
-    "photo": "/demo-photos/photo20.jpg",
+    "photo": "/demo-photos/photo4.jpg",
     "occupation": "Research Scholar",
     "maritalStatus": "Single",
     "bloodGroup": "O+"
@@ -414,7 +414,7 @@
     "taluka": "Pune",
     "village": "Pune",
     "pinCode": "441102",
-    "photo": "/demo-photos/photo20.jpg",
+    "photo": "/demo-photos/photo2.jpg",
     "occupation": "Research Scholar",
     "maritalStatus": "Single",
     "bloodGroup": "B+"
@@ -434,6 +434,7 @@
     "taluka": "Nagar City",
     "village": "Ahmednagar",
     "pinCode": "414005",
+    "photo": "/demo-photos/photo5.jpg",
     "occupation": "NA",
     "maritalStatus": "Single",
     "bloodGroup": "B+"
@@ -453,6 +454,7 @@
     "taluka": "Nagar City",
     "village": "Ahmednagar",
     "pinCode": "414005",
+    "photo": "/demo-photos/photo3.jpg",
     "occupation": "NA",
     "maritalStatus": "Single",
     "bloodGroup": "O+"
@@ -472,6 +474,7 @@
     "taluka": "Nagar City",
     "village": "Ahmednagar",
     "pinCode": "414001",
+    "photo": "/demo-photos/photo1.jpg",
     "occupation": "NA",
     "maritalStatus": "Single",
     "bloodGroup": "A+"
@@ -491,6 +494,7 @@
     "taluka": "Nagar City",
     "village": "Ahmednagar",
     "pinCode": "414601",
+    "photo": "/demo-photos/photo4.jpg",
     "occupation": "NA",
     "maritalStatus": "Single",
     "bloodGroup": "B+"
@@ -510,6 +514,27 @@
     "taluka": "Amravati",
     "village": "Amravati",
     "pinCode": "444601",
+    "photo": "/demo-photos/photo5.jpg",
+    "occupation": "NA",
+    "maritalStatus": "Single",
+    "bloodGroup": "B+"
+  },
+  {
+    "aadhaar": " 8365 9815 1999 " ,
+    "fullName": "Shinde Shubham Bhanudas",
+    "gender": "male",
+    "dob": "2007-02-07",
+    "mobile": "9294054264",
+    "alternateMobile": "",
+    "email": "shindeshubham07979@gmail.com",
+    "nationality": "Indian",
+    "address": "06, Ahmednagar",
+    "state": "Maharashtra",
+    "district": "Ahmednagar",
+    "taluka": "Nagar City",
+    "village": "Ahmednagar",
+    "pinCode": "414601",
+    "photo": "/demo-photos/photo5.jpg",
     "occupation": "NA",
     "maritalStatus": "Single",
     "bloodGroup": "B+"
