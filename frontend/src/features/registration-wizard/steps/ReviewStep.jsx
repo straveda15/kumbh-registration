@@ -124,7 +124,7 @@ export const ReviewStep = ({ code, draft, canSubmit }) => {
         </Button>
         <Button
           onClick={handleSubmitRegistration}
-          disabled={!canSubmit || submitMutation.isPending}
+          disabled={!canSubmit || submitMutation.isPending || submitMutation.isSuccess}
           className="h-12 flex-1 gap-1.5 rounded-2xl px-6 text-base font-semibold shadow-lg shadow-primary/20 transition-all duration-150 hover:-translate-y-0.5 hover:scale-[1.02] hover:bg-[var(--w-accent-hover)] sm:h-[52px] sm:flex-none"
         >
           {submitMutation.isPending ? (

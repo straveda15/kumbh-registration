@@ -82,6 +82,12 @@ export const FamilyMemberFormDialog = ({ open, onOpenChange, initialData, onSubm
 
       fetchDemoAadhaar(cleanAadhaar)
         .then((data) => {
+          if (!data) {
+            setAadhaarStatus('error');
+            toast.error('No record found for this Aadhaar number.');
+            return;
+          }
+
           setAadhaarStatus('success');
           toast.success('Family member Aadhaar details auto-filled!');
 
