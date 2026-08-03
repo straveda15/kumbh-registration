@@ -225,22 +225,13 @@ export const PersonalInformationStep = ({ code, initialData }) => {
           </div>
         </CardHeader>
         <CardContent>
-          {/* Profile Photo — mandatory. Show error hint only after touched/attempted next. */}
-          <div className="mb-3 sm:mb-4">
-            <DocumentUploadCard type="profilePhoto" variant="compact" demoPhotoUrl={demoPhotoUrl} />
-            {!hasPhoto && photoTouched && (
-              <p className="mt-1.5 text-xs text-[#FF7262] animate-in fade-in duration-200">
-                Profile photo is required. Please upload or capture a photo.
-              </p>
-            )}
-          </div>
-
           <form
             onBlur={persist}
             onSubmit={(event) => event.preventDefault()}
             className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3"
           >
-            <Field label="Aadhaar Card Number *" error={form.formState.errors.aadhaarNumber?.message}>
+            {/* Aadhaar Card Number — Full width at the top */}
+            <Field label="Aadhaar Card Number *" error={form.formState.errors.aadhaarNumber?.message} className="col-span-full">
               <div className="relative flex items-center">
                 <Input
                   className="h-14 px-4 pr-11"
@@ -256,6 +247,16 @@ export const PersonalInformationStep = ({ code, initialData }) => {
                 </div>
               </div>
             </Field>
+
+            {/* Profile Photo upload section — directly below Aadhaar */}
+            <div className="col-span-full">
+              <DocumentUploadCard type="profilePhoto" variant="compact" demoPhotoUrl={demoPhotoUrl} />
+              {!hasPhoto && photoTouched && (
+                <p className="mt-1.5 text-xs text-[#FF7262] animate-in fade-in duration-200">
+                  Profile photo is required. Please upload or capture a photo.
+                </p>
+              )}
+            </div>
 
             <Field label="Full Name (as per ID) *" className="lg:col-span-2" error={form.formState.errors.fullName?.message}>
               <Input className="h-14 px-4" {...form.register('fullName')} disabled={isLoadingDetails || isAutofilled} placeholder="As per government ID" />
