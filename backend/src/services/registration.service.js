@@ -578,6 +578,19 @@ export const submitRegistration = async (registration, meta = {}) => {
     registrationNumber = `KP${year}${stateCode}${stateSequence}`;
     pilgrimId = `KP${year}${config.pilgrimIdRegionCode}${globalSequence}`;
 
+    // Belt-and-braces: registrationNumber becomes DigitalPass.passNumber
+    // later in this function, so a candidate that looks free in
+    // `registrations` (e.g. because its owning Registration was deleted
+    // outside deleteRegistrationCascade, leaving an orphaned DigitalPass
+    // behind) must also be confirmed free in `digitalpasses` before we
+    // commit to it — otherwise the loop "succeeds" here only to blow up
+    // later as a passNumber duplicate that this retry loop never sees.
+    const passNumberTaken = await DigitalPass.exists({ passNumber: registrationNumber });
+    if (passNumberTaken) {
+      attempt += 1;
+      continue;
+    }
+
     try {
       registration.registrationStatus = REGISTRATION_STATUS.SUBMITTED;
       registration.submittedAt = new Date();
