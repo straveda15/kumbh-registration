@@ -557,19 +557,24 @@ export const submitRegistration = async (registration, meta = {}) => {
   let succeeded = false;
 
   while (attempt < MAX_SUBMIT_RETRIES && !succeeded) {
-    const [stateScopedCount, globalCount] = await Promise.all([
-      Registration.countDocuments({
-        registrationStatus: { $ne: REGISTRATION_STATUS.DRAFT },
-        submittedAt: { $gte: yearStart, $lt: yearEnd },
+    const [lastStateReg, lastGlobalReg] = await Promise.all([
+      Registration.findOne({
         registrationNumber: { $regex: `^KP${year}${stateCode}` },
-      }),
-      Registration.countDocuments({
-        registrationStatus: { $ne: REGISTRATION_STATUS.DRAFT },
-        submittedAt: { $gte: yearStart, $lt: yearEnd },
-      }),
+      }).sort({ registrationNumber: -1 }),
+      Registration.findOne({
+        pilgrimId: { $regex: `^KP${year}${config.pilgrimIdRegionCode}` },
+      }).sort({ pilgrimId: -1 }),
     ]);
-    const stateSequence = String(stateScopedCount + 1 + attempt).padStart(6, '0');
-    const globalSequence = String(globalCount + 1 + attempt).padStart(6, '0');
+
+    const lastStateSequence = lastStateReg && lastStateReg.registrationNumber
+      ? parseInt(lastStateReg.registrationNumber.slice(-6), 10)
+      : 0;
+    const lastGlobalSequence = lastGlobalReg && lastGlobalReg.pilgrimId
+      ? parseInt(lastGlobalReg.pilgrimId.slice(-6), 10)
+      : 0;
+
+    const stateSequence = String(lastStateSequence + 1 + attempt).padStart(6, '0');
+    const globalSequence = String(lastGlobalSequence + 1 + attempt).padStart(6, '0');
     registrationNumber = `KP${year}${stateCode}${stateSequence}`;
     pilgrimId = `KP${year}${config.pilgrimIdRegionCode}${globalSequence}`;
 
