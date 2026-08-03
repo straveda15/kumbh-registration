@@ -520,7 +520,7 @@
     "bloodGroup": "B+"
   },
   {
-    "aadhaar": "836598151999" ,
+    "aadhaar": "836598151999",
     "fullName": "Shinde Shubham Bhanudas",
     "gender": "male",
     "dob": "2007-02-07",
@@ -540,7 +540,7 @@
     "bloodGroup": "B+"
   },
   {
-    "aadhaar": "892628162283" ,
+    "aadhaar": "892628162283",
     "fullName": "Om Tak",
     "gender": "male",
     "dob": "2007-02-07",
@@ -560,7 +560,7 @@
     "bloodGroup": "B+"
   },
   {
-    "aadhaar": "944125493201" ,
+    "aadhaar": "944125493201",
     "fullName": "Ranjita Tak",
     "gender": "female",
     "dob": "1196-02-07",
@@ -580,7 +580,7 @@
     "bloodGroup": "B+"
   },
   {
-    "aadhaar": "633143578620" ,
+    "aadhaar": "633143578620",
     "fullName": "Santosh Tak",
     "gender": "male",
     "dob": "1995-02-07",
@@ -600,7 +600,7 @@
     "bloodGroup": "B+"
   },
   {
-    "aadhaar": "680696727582" ,
+    "aadhaar": "680696727582",
     "fullName": "Shubham Bhimrao Mahanor",
     "gender": "male",
     "dob": "1995-02-07",
@@ -618,7 +618,25 @@
     "occupation": "NA",
     "maritalStatus": "Married",
     "bloodGroup": "B+"
+  },
+  {
+    "aadhaar": "432720794619",
+    "fullName": "Atul Hiraman Hinge",
+    "gender": "male",
+    "dob": "1995-02-07",
+    "mobile": "88662478312",
+    "alternateMobile": "",
+    "email": "shubhamahanor95@gmail.com",
+    "nationality": "Indian",
+    "address": "06 Prabhat Vandan, Jadhav Colony,Panchvati, Nashik",
+    "state": "Maharashtra",
+    "district": "Nashik",
+    "taluka": "Nashik",
+    "village": "Nashik",
+    "pinCode": "422003",
+    "photo": "/demo-photos/photo1.jpg",
+    "occupation": "NA",
+    "maritalStatus": "Married",
+    "bloodGroup": "B+"
   }
-
-  
 ]
