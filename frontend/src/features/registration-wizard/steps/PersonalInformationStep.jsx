@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { motion } from 'framer-motion';
-import { ArrowRight, UserRound, Loader2, CheckCircle2, XCircle } from 'lucide-react';
+import { ArrowRight, UserRound, Loader2, CheckCircle2, XCircle, Info } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -74,7 +74,7 @@ export const PersonalInformationStep = ({ code, initialData }) => {
   const saveMutation = useSavePersonalInformation(code);
   const saveAccountMutation = useSaveAccountCredentials(code);
 
-  const [aadhaarStatus, setAadhaarStatus] = useState('idle'); // 'idle' | 'loading' | 'success' | 'error'
+  const [aadhaarStatus, setAadhaarStatus] = useState('idle'); // 'idle' | 'loading' | 'success' | 'new' | 'error'
   const [demoPhotoUrl, setDemoPhotoUrl] = useState(initialData?.photoUrl || null);
   const lastFetchedAadhaarRef = useRef(null);
 
@@ -99,13 +99,29 @@ export const PersonalInformationStep = ({ code, initialData }) => {
       fetchDemoAadhaar(cleanAadhaar)
         .then((data) => {
           if (!data) {
-            setAadhaarStatus('error');
-            toast.error('No record found for this Aadhaar number.');
+            if (aadhaarStatus === 'success') {
+              form.setValue('fullName', '', { shouldDirty: true });
+              form.setValue('gender', '', { shouldDirty: true });
+              form.setValue('dob', '', { shouldDirty: true });
+              form.setValue('mobile', '', { shouldDirty: true });
+              form.setValue('alternateMobile', '', { shouldDirty: true });
+              form.setValue('email', '', { shouldDirty: true });
+              form.setValue('state', '', { shouldDirty: true });
+              form.setValue('district', '', { shouldDirty: true });
+              form.setValue('taluka', '', { shouldDirty: true });
+              form.setValue('village', '', { shouldDirty: true });
+              form.setValue('address', '', { shouldDirty: true });
+              form.setValue('pinCode', '', { shouldDirty: true });
+              form.setValue('photoUrl', '', { shouldDirty: true });
+              setDemoPhotoUrl(null);
+            }
+            setAadhaarStatus('new');
+            toast.success('New Aadhaar detected.');
             return;
           }
 
           setAadhaarStatus('success');
-          toast.success('Aadhaar details retrieved and auto-filled!');
+          toast.success('Existing record found. Details have been auto-filled.');
 
           if (data.fullName) form.setValue('fullName', data.fullName, { shouldValidate: true, shouldDirty: true });
           if (data.gender) form.setValue('gender', data.gender, { shouldValidate: true, shouldDirty: true });
@@ -126,9 +142,25 @@ export const PersonalInformationStep = ({ code, initialData }) => {
             setDemoPhotoUrl(data.photo);
           }
         })
-        .catch((error) => {
-          setAadhaarStatus('error');
-          toast.error(error?.message || 'No record found for this Aadhaar number.');
+        .catch(() => {
+          if (aadhaarStatus === 'success') {
+            form.setValue('fullName', '', { shouldDirty: true });
+            form.setValue('gender', '', { shouldDirty: true });
+            form.setValue('dob', '', { shouldDirty: true });
+            form.setValue('mobile', '', { shouldDirty: true });
+            form.setValue('alternateMobile', '', { shouldDirty: true });
+            form.setValue('email', '', { shouldDirty: true });
+            form.setValue('state', '', { shouldDirty: true });
+            form.setValue('district', '', { shouldDirty: true });
+            form.setValue('taluka', '', { shouldDirty: true });
+            form.setValue('village', '', { shouldDirty: true });
+            form.setValue('address', '', { shouldDirty: true });
+            form.setValue('pinCode', '', { shouldDirty: true });
+            form.setValue('photoUrl', '', { shouldDirty: true });
+            setDemoPhotoUrl(null);
+          }
+          setAadhaarStatus('new');
+          toast.success('New Aadhaar detected.');
         });
     } else if (cleanAadhaar.length < 12) {
       lastFetchedAadhaarRef.current = null;
@@ -249,7 +281,7 @@ export const PersonalInformationStep = ({ code, initialData }) => {
                 />
                 <div className="absolute right-3.5 flex items-center pointer-events-none">
                   {aadhaarStatus === 'loading' && <Loader2 className="size-5 animate-spin text-primary" />}
-                  {aadhaarStatus === 'success' && <CheckCircle2 className="size-5 text-emerald-500" />}
+                  {(aadhaarStatus === 'success' || aadhaarStatus === 'new') && <CheckCircle2 className="size-5 text-emerald-500" />}
                   {aadhaarStatus === 'error' && <XCircle className="size-5 text-destructive" />}
                 </div>
               </div>
