@@ -2,14 +2,14 @@ import { Dashboard } from '../models/dashboard.model.js';
 
 // userId is optional for now since user authentication does not exist yet.
 // Passing null returns/creates the shared placeholder dashboard record.
+// Uses atomic findOneAndUpdate + upsert to eliminate race conditions between
+// concurrent calls for the same userId (preventing Mongo E11000 duplicate key errors).
 export const getOrCreateDashboard = async (userId = null) => {
-  let dashboard = await Dashboard.findOne({ userId });
-
-  if (!dashboard) {
-    dashboard = await Dashboard.create({ userId });
-  }
-
-  return dashboard;
+  return Dashboard.findOneAndUpdate(
+    { userId },
+    { $setOnInsert: { userId } },
+    { new: true, upsert: true, setDefaultsOnInsert: true }
+  );
 };
 
 export const updateDashboard = async (userId, payload) => {
