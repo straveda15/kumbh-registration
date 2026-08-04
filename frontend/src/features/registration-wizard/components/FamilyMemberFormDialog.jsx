@@ -83,8 +83,8 @@ export const FamilyMemberFormDialog = ({ open, onOpenChange, initialData, onSubm
       fetchDemoAadhaar(cleanAadhaar)
         .then((data) => {
           if (!data) {
-            setAadhaarStatus('error');
-            toast.error('No record found for this Aadhaar number.');
+            setAadhaarStatus('new');
+            toast.success('New Aadhaar detected.');
             return;
           }
 
@@ -103,9 +103,9 @@ export const FamilyMemberFormDialog = ({ open, onOpenChange, initialData, onSubm
             form.setValue('photoUrl', data.photo, { shouldValidate: true, shouldDirty: true });
           }
         })
-        .catch((error) => {
-          setAadhaarStatus('error');
-          toast.error(error?.message || 'No record found for this Aadhaar number.');
+        .catch(() => {
+          setAadhaarStatus('new');
+          toast.success('New Aadhaar detected.');
         });
     } else if (cleanAadhaar.length < 12) {
       lastFetchedAadhaarRef.current = null;
@@ -303,7 +303,7 @@ export const FamilyMemberFormDialog = ({ open, onOpenChange, initialData, onSubm
               />
               <div className="absolute right-3.5 flex items-center pointer-events-none">
                 {aadhaarStatus === 'loading' && <Loader2 className="size-5 animate-spin text-primary" />}
-                {aadhaarStatus === 'success' && <CheckCircle2 className="size-5 text-emerald-500" />}
+                {(aadhaarStatus === 'success' || aadhaarStatus === 'new') && <CheckCircle2 className="size-5 text-emerald-500" />}
                 {aadhaarStatus === 'error' && <XCircle className="size-5 text-destructive" />}
               </div>
             </div>
