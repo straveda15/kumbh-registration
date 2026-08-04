@@ -149,8 +149,8 @@ export const startRegistration = async ({ code }, meta = {}) => {
   if (!qr) {
     console.log(
       '[QR LOOKUP DEBUG] Exact reason why "No registration found" is returned: Code "' +
-        cleanCode +
-        '" did not match any existing Registration (by registrationNumber, pilgrimId, _id, userId, digitalPass) AND did not match any active Event QR code.'
+      cleanCode +
+      '" did not match any existing Registration (by registrationNumber, pilgrimId, _id, userId, digitalPass) AND did not match any active Event QR code.'
     );
     throw ApiError.notFound(`No registration found for code: ${cleanCode}`);
   }
@@ -290,14 +290,14 @@ export const saveFamilyMembers = async (registration, members, meta = {}) => {
 
   const docs = members.length
     ? await FamilyMember.insertMany(
-        members.map((data) => ({
-          userId: registration.userId,
-          registrationId: registration._id,
-          data,
-          status: STEP_STATUS.COMPLETED,
-          completedAt: new Date(),
-        }))
-      )
+      members.map((data) => ({
+        userId: registration.userId,
+        registrationId: registration._id,
+        data,
+        status: STEP_STATUS.COMPLETED,
+        completedAt: new Date(),
+      }))
+    )
     : [];
 
   await syncFamilyStepStatus(registration);
@@ -475,22 +475,22 @@ export const getDraft = async (registration) => {
 
   const finalDigitalPass = isSubmitted
     ? {
-        ...(digitalPass ? digitalPass.toObject() : {}),
-        passNumber: digitalPass?.passNumber || registration.registrationNumber,
-        verificationStatus,
-        qrCode: passActivated ? digitalPass?.qrCode : null,
-        qrImage: passActivated ? digitalPass?.qrImage : null,
-        passActivated,
-      }
+      ...(digitalPass ? digitalPass.toObject() : {}),
+      passNumber: digitalPass?.passNumber || registration.registrationNumber,
+      verificationStatus,
+      qrCode: passActivated ? digitalPass?.qrCode : null,
+      qrImage: passActivated ? digitalPass?.qrImage : null,
+      passActivated,
+    }
     : digitalPass
-    ? {
+      ? {
         ...digitalPass.toObject(),
         verificationStatus,
         qrCode: passActivated ? digitalPass.qrCode : null,
         qrImage: passActivated ? digitalPass.qrImage : null,
         passActivated,
       }
-    : null;
+      : null;
 
   return {
     ...progress,
@@ -557,21 +557,39 @@ export const submitRegistration = async (registration, meta = {}) => {
   let succeeded = false;
 
   while (attempt < MAX_SUBMIT_RETRIES && !succeeded) {
-    const [stateScopedCount, globalCount] = await Promise.all([
-      Registration.countDocuments({
-        registrationStatus: { $ne: REGISTRATION_STATUS.DRAFT },
-        submittedAt: { $gte: yearStart, $lt: yearEnd },
+    const [lastStateReg, lastGlobalReg] = await Promise.all([
+      Registration.findOne({
         registrationNumber: { $regex: `^KP${year}${stateCode}` },
-      }),
-      Registration.countDocuments({
-        registrationStatus: { $ne: REGISTRATION_STATUS.DRAFT },
-        submittedAt: { $gte: yearStart, $lt: yearEnd },
-      }),
+      }).sort({ registrationNumber: -1 }),
+      Registration.findOne({
+        pilgrimId: { $regex: `^KP${year}${config.pilgrimIdRegionCode}` },
+      }).sort({ pilgrimId: -1 }),
     ]);
-    const stateSequence = String(stateScopedCount + 1 + attempt).padStart(6, '0');
-    const globalSequence = String(globalCount + 1 + attempt).padStart(6, '0');
+
+    const lastStateSequence = lastStateReg && lastStateReg.registrationNumber
+      ? parseInt(lastStateReg.registrationNumber.slice(-6), 10)
+      : 0;
+    const lastGlobalSequence = lastGlobalReg && lastGlobalReg.pilgrimId
+      ? parseInt(lastGlobalReg.pilgrimId.slice(-6), 10)
+      : 0;
+
+    const stateSequence = String(lastStateSequence + 1 + attempt).padStart(6, '0');
+    const globalSequence = String(lastGlobalSequence + 1 + attempt).padStart(6, '0');
     registrationNumber = `KP${year}${stateCode}${stateSequence}`;
     pilgrimId = `KP${year}${config.pilgrimIdRegionCode}${globalSequence}`;
+
+    // Belt-and-braces: registrationNumber becomes DigitalPass.passNumber
+    // later in this function, so a candidate that looks free in
+    // `registrations` (e.g. because its owning Registration was deleted
+    // outside deleteRegistrationCascade, leaving an orphaned DigitalPass
+    // behind) must also be confirmed free in `digitalpasses` before we
+    // commit to it — otherwise the loop "succeeds" here only to blow up
+    // later as a passNumber duplicate that this retry loop never sees.
+    const passNumberTaken = await DigitalPass.exists({ passNumber: registrationNumber });
+    if (passNumberTaken) {
+      attempt += 1;
+      continue;
+    }
 
     try {
       registration.registrationStatus = REGISTRATION_STATUS.SUBMITTED;
@@ -597,17 +615,29 @@ export const submitRegistration = async (registration, meta = {}) => {
   const passUrl = `${config.frontendUrl}/pass/${passUniqueCode}`;
   const qrImage = await QRCodeLib.toDataURL(passUrl);
 
-  const digitalPass = await DigitalPass.create({
-    registrationId: registration._id,
-    userId: registration.userId,
-    eventId: registration.eventId,
-    passNumber: registrationNumber,
-    qrCode: passUniqueCode,
-    qrImage,
-    status: DIGITAL_PASS_STATUS.ACTIVE,
-    verificationStatus: VERIFICATION_STATUS.PENDING,
-    issuedAt: new Date(),
-  });
+  // Idempotent by registrationId: a genuine duplicate submit (double-click,
+  // client retry-on-timeout) can reach this point twice for the same
+  // registration after both concurrently pass the draft-editable/number
+  // checks above. findOneAndUpdate+upsert makes "does a pass already exist
+  // for this registration" and "create/update it" a single atomic
+  // operation, so the second call updates the same document instead of
+  // racing a second insert into a passNumber-unique collection.
+  const digitalPass = await DigitalPass.findOneAndUpdate(
+    { registrationId: registration._id },
+    {
+      $set: {
+        userId: registration.userId,
+        eventId: registration.eventId,
+        passNumber: registrationNumber,
+        qrCode: passUniqueCode,
+        qrImage,
+        status: DIGITAL_PASS_STATUS.ACTIVE,
+        verificationStatus: VERIFICATION_STATUS.PENDING,
+        issuedAt: new Date(),
+      },
+    },
+    { new: true, upsert: true, setDefaultsOnInsert: true }
+  );
 
   registration.digitalPassId = digitalPass._id;
   await registration.save();

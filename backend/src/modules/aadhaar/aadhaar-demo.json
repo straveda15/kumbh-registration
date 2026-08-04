@@ -194,7 +194,7 @@
     "taluka": "Haveli",
     "village": "Pune",
     "pinCode": "411030",
-    "photo": "/demo-photos/photo10.jpg",
+    "photo": "/demo-photos/photo8.jpg",
     "occupation": "Accountant",
     "maritalStatus": "Single",
     "bloodGroup": "A+"
@@ -214,7 +214,7 @@
     "taluka": "Shaikpet",
     "village": "Hyderabad",
     "pinCode": "500033",
-    "photo": "/demo-photos/photo11.jpg",
+    "photo": "/demo-photos/photo12.jpg",
     "occupation": "Entrepreneur",
     "maritalStatus": "Married",
     "bloodGroup": "O+"
@@ -234,7 +234,7 @@
     "taluka": "Mylapore",
     "village": "Chennai",
     "pinCode": "600004",
-    "photo": "/demo-photos/photo12.jpg",
+    "photo": "/demo-photos/photo11.jpg",
     "occupation": "Homemaker",
     "maritalStatus": "Married",
     "bloodGroup": "AB-"
@@ -254,7 +254,7 @@
     "taluka": "Vadodara",
     "village": "Vadodara",
     "pinCode": "390007",
-    "photo": "/demo-photos/photo8.jpg",
+    "photo": "/demo-photos/photo10.jpg",
     "occupation": "Merchant",
     "maritalStatus": "Married",
     "bloodGroup": "B+"
@@ -454,7 +454,7 @@
     "taluka": "Nagar City",
     "village": "Ahmednagar",
     "pinCode": "414005",
-    "photo": "/demo-photos/photo3.jpg",
+    "photo": "/demo-photos/photo5.jpg",
     "occupation": "NA",
     "maritalStatus": "Single",
     "bloodGroup": "O+"
@@ -502,7 +502,7 @@
   {
     "aadhaar": "205793987512",
     "fullName": "Abhay Pradip Sawarkar",
-    "gender": "Male",
+    "gender": "male",
     "dob": "2003-07-15",
     "mobile": "8237514015",
     "alternateMobile": "",
@@ -520,7 +520,7 @@
     "bloodGroup": "B+"
   },
   {
-    "aadhaar": "836598151999" ,
+    "aadhaar": "836598151999",
     "fullName": "Shinde Shubham Bhanudas",
     "gender": "male",
     "dob": "2007-02-07",
@@ -540,7 +540,7 @@
     "bloodGroup": "B+"
   },
   {
-    "aadhaar": "892628162283" ,
+    "aadhaar": "892628162283",
     "fullName": "Om Tak",
     "gender": "male",
     "dob": "2007-02-07",
@@ -560,7 +560,7 @@
     "bloodGroup": "B+"
   },
   {
-    "aadhaar": "944125493201" ,
+    "aadhaar": "944125493201",
     "fullName": "Ranjita Tak",
     "gender": "female",
     "dob": "1196-02-07",
@@ -580,7 +580,7 @@
     "bloodGroup": "B+"
   },
   {
-    "aadhaar": "633143578620" ,
+    "aadhaar": "633143578620",
     "fullName": "Santosh Tak",
     "gender": "male",
     "dob": "1995-02-07",
@@ -598,7 +598,45 @@
     "occupation": "NA",
     "maritalStatus": "Married",
     "bloodGroup": "B+"
+  },
+  {
+    "aadhaar": "680696727582",
+    "fullName": "Shubham Bhimrao Mahanor",
+    "gender": "male",
+    "dob": "1995-02-07",
+    "mobile": "8662038302",
+    "alternateMobile": "",
+    "email": "shubhamahanor95@gmail.com",
+    "nationality": "Indian",
+    "address": "06 Prabhat Vandan, Jadhav Colony,Panchvati, Nashik",
+    "state": "Maharashtra",
+    "district": "Nashik",
+    "taluka": "Nashik",
+    "village": "Nashik",
+    "pinCode": "422003",
+    "photo": "/demo-photos/photo1.jpg",
+    "occupation": "NA",
+    "maritalStatus": "Married",
+    "bloodGroup": "B+"
+  },
+  {
+    "aadhaar": "432720794619",
+    "fullName": "Atul Hiraman Hinge",
+    "gender": "male",
+    "dob": "1995-02-07",
+    "mobile": "8662478312",
+    "alternateMobile": "",
+    "email": "shubhamahanor95@gmail.com",
+    "nationality": "Indian",
+    "address": "06 Prabhat Vandan, Jadhav Colony,Panchvati, Nashik",
+    "state": "Maharashtra",
+    "district": "Nashik",
+    "taluka": "Nashik",
+    "village": "Nashik",
+    "pinCode": "422003",
+    "photo": "/demo-photos/photo1.jpg",
+    "occupation": "NA",
+    "maritalStatus": "Married",
+    "bloodGroup": "B+"
   }
-
-  
 ]

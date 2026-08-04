@@ -13,7 +13,7 @@ export const lookupAadhaar = asyncHandler(async (req, res) => {
   const record = findDemoAadhaar(aadhaar.trim());
 
   if (!record) {
-    throw ApiError.notFound('No record found for this Aadhaar number.');
+    return new ApiResponse(200, null, 'No record found for this Aadhaar number.').send(res);
   }
 
   return new ApiResponse(200, record, 'Aadhaar details retrieved successfully').send(res);

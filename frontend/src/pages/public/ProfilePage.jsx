@@ -106,7 +106,8 @@ export const ProfilePage = () => {
     );
   }
 
-  const profilePhoto = (documents || []).find((doc) => doc.type === 'profilePhoto');
+  const profilePhotoDoc = (documents || []).find((doc) => doc.type === 'profilePhoto');
+  const profilePhoto = profilePhotoDoc || (snapshot?.personalInformation?.data?.photoUrl ? { url: snapshot.personalInformation.data.photoUrl } : null);
 
   const onSubmitProfile = profileForm.handleSubmit(async (values) => {
     try {
