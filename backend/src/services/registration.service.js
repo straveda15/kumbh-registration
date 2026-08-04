@@ -9,6 +9,8 @@ import { TravelInformation } from '../models/travelInformation.model.js';
 import { Accommodation } from '../models/accommodation.model.js';
 import { FamilyMember } from '../models/familyMember.model.js';
 import { DigitalPass } from '../models/digitalPass.model.js';
+import { Dashboard } from '../models/dashboard.model.js';
+import { Notification } from '../models/notification.model.js';
 import { ScanLog } from '../models/scanLog.model.js';
 import { Event } from '../models/event.model.js';
 import { ActivityLog } from '../models/activityLog.model.js';
@@ -29,6 +31,7 @@ import { logActivity } from './activityLog.service.js';
 import { logAudit, listAuditLogs } from './auditLog.service.js';
 import { createNotification } from './notification.service.js';
 import * as documentService from './document.service.js';
+import { withTransaction } from '../utils/transaction.helper.js';
 
 const STEP_MODEL_MAP = {
   [WIZARD_STEPS.PERSONAL_INFORMATION]: PersonalInformation,
@@ -171,37 +174,30 @@ export const startRegistration = async ({ code }, meta = {}) => {
   if (event.capacity) {
     const count = await Registration.countDocuments({
       eventId: event._id,
-      registrationStatus: { $ne: REGISTRATION_STATUS.DRAFT },
+      registrationStatus: {
+        $nin: [REGISTRATION_STATUS.DRAFT, REGISTRATION_STATUS.CANCELLED, REGISTRATION_STATUS.REJECTED],
+      },
     });
     if (count >= event.capacity) throw ApiError.badRequest('This event has reached registration capacity');
   }
 
-  const user = await User.create({});
+  const { user, registration } = await withTransaction(async (session) => {
+    const sessionOpts = session ? { session } : {};
+    const [u] = await User.create([{}], sessionOpts);
+    const [r] = await Registration.create([{ eventId: event._id, qrId: qr._id, userId: u._id }], sessionOpts);
 
-  const registration = await Registration.create({
-    eventId: event._id,
-    qrId: qr._id,
-    userId: user._id,
+    await Promise.all([
+      PersonalInformation.create([{ userId: u._id, registrationId: r._id }], sessionOpts),
+      EmergencyContact.create([{ userId: u._id, registrationId: r._id }], sessionOpts),
+      MedicalProfile.create([{ userId: u._id, registrationId: r._id }], sessionOpts),
+      TravelInformation.create([{ userId: u._id, registrationId: r._id }], sessionOpts),
+      Accommodation.create([{ userId: u._id, registrationId: r._id }], sessionOpts),
+    ]);
+
+    return { user: u, registration: r };
   });
 
-  // Counts as exactly one successful scan — right here, once per new
-  // registration actually created through this QR. Refreshing/resuming an
-  // in-progress draft never reaches this line again (useStartOrResumeDraft
-  // on the frontend resumes via getDraft() instead once a session exists),
-  // so a page refresh can never double-count. The old public GET
-  // /api/v1/qr/:code route also tracked scans, but nothing in the app's
-  // real flow ever calls it — the QR encodes a link straight into this
-  // wizard, not that API endpoint — so it was silently dead code and
-  // scanCount never actually moved.
   await qrService.incrementScanCount(qr._id);
-
-  await Promise.all([
-    PersonalInformation.create({ userId: user._id, registrationId: registration._id }),
-    EmergencyContact.create({ userId: user._id, registrationId: registration._id }),
-    MedicalProfile.create({ userId: user._id, registrationId: registration._id }),
-    TravelInformation.create({ userId: user._id, registrationId: registration._id }),
-    Accommodation.create({ userId: user._id, registrationId: registration._id }),
-  ]);
 
   await logActivity({
     actorType: 'user',
@@ -537,6 +533,19 @@ export const submitRegistration = async (registration, meta = {}) => {
     throw ApiError.badRequest(`Event is ${event.status} and no longer accepting submissions`);
   }
 
+  if (event.capacity) {
+    const activeSubmittedCount = await Registration.countDocuments({
+      eventId: event._id,
+      registrationStatus: {
+        $nin: [REGISTRATION_STATUS.DRAFT, REGISTRATION_STATUS.CANCELLED, REGISTRATION_STATUS.REJECTED],
+      },
+      _id: { $ne: registration._id },
+    });
+    if (activeSubmittedCount >= event.capacity) {
+      throw ApiError.badRequest('This event has reached its maximum registration capacity');
+    }
+  }
+
   const year = new Date().getFullYear();
   const yearStart = new Date(`${year}-01-01T00:00:00.000Z`);
   const yearEnd = new Date(`${year + 1}-01-01T00:00:00.000Z`);
@@ -622,27 +631,33 @@ export const submitRegistration = async (registration, meta = {}) => {
   // for this registration" and "create/update it" a single atomic
   // operation, so the second call updates the same document instead of
   // racing a second insert into a passNumber-unique collection.
-  const digitalPass = await DigitalPass.findOneAndUpdate(
-    { registrationId: registration._id },
-    {
-      $set: {
-        userId: registration.userId,
-        eventId: registration.eventId,
-        passNumber: registrationNumber,
-        qrCode: passUniqueCode,
-        qrImage,
-        status: DIGITAL_PASS_STATUS.ACTIVE,
-        verificationStatus: VERIFICATION_STATUS.PENDING,
-        issuedAt: new Date(),
+  const digitalPass = await withTransaction(async (session) => {
+    const sessionOpts = session ? { session } : {};
+
+    const pass = await DigitalPass.findOneAndUpdate(
+      { registrationId: registration._id },
+      {
+        $set: {
+          userId: registration.userId,
+          eventId: registration.eventId,
+          passNumber: registrationNumber,
+          qrCode: passUniqueCode,
+          qrImage,
+          status: DIGITAL_PASS_STATUS.ACTIVE,
+          verificationStatus: VERIFICATION_STATUS.PENDING,
+          issuedAt: new Date(),
+        },
       },
-    },
-    { new: true, upsert: true, setDefaultsOnInsert: true }
-  );
+      { new: true, upsert: true, setDefaultsOnInsert: true, ...sessionOpts }
+    );
 
-  registration.digitalPassId = digitalPass._id;
-  await registration.save();
+    registration.digitalPassId = pass._id;
+    await registration.save(sessionOpts);
 
-  await dashboardService.getOrCreateDashboard(registration.userId);
+    await dashboardService.getOrCreateDashboard(registration.userId);
+
+    return pass;
+  });
 
   await logActivity({
     actorType: 'user',
@@ -965,19 +980,42 @@ export const deleteRegistrationCascade = async (id, adminId) => {
 
   await documentService.deleteAllDocuments(registration);
 
-  await Promise.all([
-    PersonalInformation.deleteOne({ registrationId: registration._id }),
-    EmergencyContact.deleteOne({ registrationId: registration._id }),
-    MedicalProfile.deleteOne({ registrationId: registration._id }),
-    TravelInformation.deleteOne({ registrationId: registration._id }),
-    Accommodation.deleteOne({ registrationId: registration._id }),
-    FamilyMember.deleteMany({ registrationId: registration._id }),
-    registration.digitalPassId
-      ? DigitalPass.deleteOne({ _id: registration.digitalPassId })
-      : Promise.resolve(),
-  ]);
+  await withTransaction(async (session) => {
+    // Safely check if this User owns any OTHER registrations before purging User/Dashboard
+    const hasOtherRegistrations = registration.userId
+      ? await Registration.exists({ userId: registration.userId, _id: { $ne: registration._id } }).session(session)
+      : false;
 
-  await registration.deleteOne();
+    const sessionOpts = session ? { session } : {};
+
+    await Promise.all([
+      PersonalInformation.deleteOne({ registrationId: registration._id }, sessionOpts),
+      EmergencyContact.deleteOne({ registrationId: registration._id }, sessionOpts),
+      MedicalProfile.deleteOne({ registrationId: registration._id }, sessionOpts),
+      TravelInformation.deleteOne({ registrationId: registration._id }, sessionOpts),
+      Accommodation.deleteOne({ registrationId: registration._id }, sessionOpts),
+      FamilyMember.deleteMany({ registrationId: registration._id }, sessionOpts),
+      // Delete DigitalPass by registrationId directly to prevent orphan passes
+      DigitalPass.deleteOne({ registrationId: registration._id }, sessionOpts),
+      Notification.deleteMany(
+        {
+          $or: [
+            { registrationId: registration._id },
+            ...(hasOtherRegistrations || !registration.userId ? [] : [{ userId: registration.userId }]),
+          ],
+        },
+        sessionOpts
+      ),
+      !hasOtherRegistrations && registration.userId
+        ? Dashboard.deleteOne({ userId: registration.userId }, sessionOpts)
+        : Promise.resolve(),
+      !hasOtherRegistrations && registration.userId
+        ? User.deleteOne({ _id: registration.userId }, sessionOpts)
+        : Promise.resolve(),
+    ]);
+
+    await registration.deleteOne(sessionOpts);
+  });
 
   await logAudit({
     entityType: 'Registration',

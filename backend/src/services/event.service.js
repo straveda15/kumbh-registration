@@ -1,8 +1,10 @@
 import { Event } from '../models/event.model.js';
+import { QRCode } from '../models/qrcode.model.js';
 import { Registration } from '../models/registration.model.js';
 import { ApiError } from '../utils/ApiError.js';
 import { getPagination, buildPaginationMeta } from '../helpers/pagination.helper.js';
 import * as qrService from './qr.service.js';
+import { withTransaction } from '../utils/transaction.helper.js';
 
 export const createEvent = async (payload, createdBy, origin) => {
   const event = await Event.create({ ...payload, createdBy });
@@ -59,17 +61,23 @@ export const setEventPublication = async (id, status) => {
 };
 
 export const deleteEvent = async (id) => {
+  const event = await Event.findById(id);
+
+  if (!event) {
+    throw ApiError.notFound('Event not found');
+  }
+
   const hasRegistrations = await Registration.exists({ eventId: id });
 
   if (hasRegistrations) {
     throw ApiError.conflict('Cannot delete an event that already has registrations');
   }
 
-  const event = await Event.findByIdAndDelete(id);
-
-  if (!event) {
-    throw ApiError.notFound('Event not found');
-  }
+  await withTransaction(async (session) => {
+    const sessionOpts = session ? { session } : {};
+    await QRCode.deleteMany({ eventId: id }, sessionOpts);
+    await event.deleteOne(sessionOpts);
+  });
 
   return event;
 };

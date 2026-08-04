@@ -1,6 +1,7 @@
 import QRCodeLib from 'qrcode';
 import { QRCode } from '../models/qrcode.model.js';
 import { Event } from '../models/event.model.js';
+import { Registration } from '../models/registration.model.js';
 import { QR_STATUS } from '../constants/qrStatus.js';
 import { ApiError } from '../utils/ApiError.js';
 import { generateUniqueCode } from '../utils/generateCode.js';
@@ -162,13 +163,23 @@ export const disableQR = async (id) => updateQR(id, { status: QR_STATUS.DISABLED
 export const expireQR = async (id) => updateQR(id, { status: QR_STATUS.EXPIRED });
 
 export const deleteQR = async (id) => {
-  const qr = await QRCode.findByIdAndDelete(id);
+  const qr = await QRCode.findById(id);
 
   if (!qr) {
     throw ApiError.notFound('QR code not found');
   }
 
-  await Event.updateOne({ qrCode: id }, { $set: { qrCode: null } });
+  const hasRegistrations = await Registration.exists({ qrId: id });
+  if (hasRegistrations) {
+    throw ApiError.conflict('Cannot delete a QR code that has associated registrations');
+  }
+
+  const hasEvent = await Event.exists({ qrCode: id });
+  if (hasEvent) {
+    throw ApiError.conflict('Cannot delete a QR code linked to an event. Delete the event instead.');
+  }
+
+  await qr.deleteOne();
 
   return qr;
 };
