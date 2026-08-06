@@ -104,12 +104,12 @@ export const PublicLayout = ({ children }) => {
               <Menu className="size-5" />
             </Button>
           )}
-          <Link to="/" className="flex items-center gap-2 text-sm font-semibold text-foreground">
+          <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
             <span className="flex size-8 items-center justify-center rounded-lg bg-primary/15 text-primary">
               <QrCode className="size-4" />
             </span>
             <span className="hidden sm:inline">Kumbh Registration</span>
-          </Link>
+          </div>
         </div>
 
         {hasSession ? (
