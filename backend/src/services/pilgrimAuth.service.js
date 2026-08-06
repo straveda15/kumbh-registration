@@ -1,7 +1,45 @@
 import { User } from '../models/user.model.js';
 import { Registration } from '../models/registration.model.js';
+import { PersonalInformation } from '../models/personalInformation.model.js';
+import { EmergencyContact } from '../models/emergencyContact.model.js';
+import { MedicalProfile } from '../models/medicalProfile.model.js';
+import { TravelInformation } from '../models/travelInformation.model.js';
+import { Accommodation } from '../models/accommodation.model.js';
+import { FamilyMember } from '../models/familyMember.model.js';
 import { ApiError } from '../utils/ApiError.js';
 import { signPilgrimToken } from '../helpers/token.helper.js';
+import { REGISTRATION_STATUS } from '../constants/registrationStatus.js';
+
+// If a User holding this email/mobile is only ever an abandoned, unsubmitted
+// draft (closed the tab after a page or two, never coming back), it isn't a
+// real "already registered" account — it's dead weight left behind by
+// startRegistration creating a fresh User on every QR scan. Rather than
+// permanently blocking anyone who reuses that email on a later attempt, we
+// tear the abandoned draft down (same collections deleteRegistrationCascade
+// touches, minus the audit/document cleanup that doesn't apply to a draft
+// with no admin history) and let the new attempt claim the email/mobile.
+// Returns true if it cleaned up (safe to proceed), false if the conflicting
+// account is real (submitted, or no registration at all) and should still
+// block.
+const releaseIfAbandonedDraft = async (conflictUser) => {
+  const registration = await Registration.findOne({ userId: conflictUser._id });
+
+  if (registration && registration.registrationStatus === REGISTRATION_STATUS.DRAFT) {
+    await Promise.all([
+      PersonalInformation.deleteOne({ registrationId: registration._id }),
+      EmergencyContact.deleteOne({ registrationId: registration._id }),
+      MedicalProfile.deleteOne({ registrationId: registration._id }),
+      TravelInformation.deleteOne({ registrationId: registration._id }),
+      Accommodation.deleteOne({ registrationId: registration._id }),
+      FamilyMember.deleteMany({ registrationId: registration._id }),
+    ]);
+    await registration.deleteOne();
+    await conflictUser.deleteOne();
+    return true;
+  }
+
+  return false;
+};
 
 // Called from the Personal Information step (registration.controller.js's
 // saveAccountCredentials) — sets the credentials that turn an otherwise
@@ -18,15 +56,27 @@ export const setCredentials = async (userId, { fullName, email, mobile, password
   ]);
 
   if (emailConflict) {
-    throw ApiError.conflict('This email is already registered to another account', [
-      { field: 'email', message: 'Email already in use' },
-    ]);
+    const released = await releaseIfAbandonedDraft(emailConflict);
+    if (!released) {
+      throw ApiError.conflict('This email is already registered to another account', [
+        { field: 'email', message: 'Email already in use' },
+      ]);
+    }
   }
 
   if (mobileConflict) {
-    throw ApiError.conflict('This mobile number is already registered to another account', [
-      { field: 'mobile', message: 'Mobile number already in use' },
-    ]);
+    // mobileConflict may be the same document we just deleted above (one
+    // abandoned draft colliding on both fields) — re-check it still exists
+    // before treating it as a separate conflict.
+    const stillExists = await User.exists({ _id: mobileConflict._id });
+    if (stillExists) {
+      const released = await releaseIfAbandonedDraft(mobileConflict);
+      if (!released) {
+        throw ApiError.conflict('This mobile number is already registered to another account', [
+          { field: 'mobile', message: 'Mobile number already in use' },
+        ]);
+      }
+    }
   }
 
   const user = await User.findById(userId);
